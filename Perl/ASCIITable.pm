@@ -23,7 +23,7 @@ our $VERSION = '0.02' ;
 
 #-------------------------------------------------------------------------------
 
-use Text::ASCIITable ;
+use Text::ASCIITable 0.12 ;
 
 use Data::TreeDumper ;
 $Data::TreeDumper::Useascii = 0 ;
@@ -121,6 +121,21 @@ for my $range (@$ranges)
 		}
 		
 	#------------------------------------------------------------------------
+	#~ # page width handling
+	#~ use Term::Size ;
+	
+	#~ my ($screen_width) = Term::Size::chars *STDOUT{IO} ;
+	#~ $screen_width = 78 if $screen_width eq '' ;
+	
+        #~ $table->setOptions('outputWidth', $screen_width);
+	#~ my $pages = $table->pageCount() ;
+	
+        #~ for my $page (1 .. $pages) 
+		#~ {
+		#~ $dump .= $table->drawPage($page)."\n";
+		#~ $dump .= "[$page/$pages].\n\n" if  $pages > 1;
+		#~ }
+	#------------------------------------------------------------------------
 	# page width handling
 	use Term::Size ;
 	
@@ -194,7 +209,7 @@ for my $range (@$ranges)
 		$dump .= $table->draw(@table_decoration) . "\n" ;
 		}
 	}
-
+	
 return( $dump ) ;
 }
 

@@ -25,7 +25,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( ) ;
 
-our $VERSION = '0.01' ;
+our $VERSION = '0.02' ;
 
 #-------------------------------------------------------------------------------
 
@@ -74,7 +74,7 @@ close(SS_OUT) ;
 sub GeneratedWriteData
 {
 my $ss = shift ;
-my $write_data = '' ;
+my $write_data = SerializeBuiltin() ;
 
 # save functions
 for (sort keys %Spreadsheet::Perl::defined_functions)
@@ -148,11 +148,25 @@ for my $current_address ($ss->GetCellList())
 	{
 	my $current_cell = $ss->{CELLS}{$current_address} ;
 	
+	if(exists $current_cell->{FORMULA})
+		{
+		$write_data .= "\t$current_address => Formula('$current_cell->{FORMULA}[1]'),\n" ;
+		}
+		
 	if(exists $current_cell->{GENERATED_FORMULA})
 		{
-		$write_data .= "\t$current_address => PerlFormula('"
-							. $current_cell->{GENERATED_FORMULA}
-							. "'),\n" ;
+		$write_data .= "\t$current_address => PerlFormula(" ;
+		
+		if($current_cell->{GENERATED_FORMULA} =~ /\n/)
+			{
+			$write_data .= "<<'EOF'),\n" ;
+			$write_data .= $current_cell->{GENERATED_FORMULA} ;
+			$write_data .=  "EOF\n" ;
+			}
+		else
+			{
+			$write_data .= "q~$current_cell->{GENERATED_FORMULA}~),\n" ;
+			}
 		}
 	else
 		{

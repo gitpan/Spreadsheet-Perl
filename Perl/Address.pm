@@ -23,7 +23,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( SortCells ConvertAdressToNumeric) ;
 
-our $VERSION = '0.02' ;
+our $VERSION = '0.03' ;
 
 use Spreadsheet::ConvertAA 0.02 ;
 
@@ -158,7 +158,7 @@ else
 		}
 	else
 		{
-		if($address =~ /^([0-9]+),([0-9]+)$/)
+		if($address =~ /^\s*([0-9]+)\s*,\s*([0-9]+)\s*$/)
 			{
 			return($spreadsheet . ConvertNumericToAddress($1, $2)) ;
 			}

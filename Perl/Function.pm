@@ -21,7 +21,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
 #~ our @EXPORT = qw( StoreFunction FetchFunction) ;
 our @EXPORT ;
-push @EXPORT, qw( StoreFunction FetchFunction StoreOnFetch) ;
+push @EXPORT, qw( StoreFunction FetchFunction StoreOnFetch DeleteFunction) ;
 
 our $VERSION = '0.01' ;
 
@@ -50,6 +50,12 @@ return bless [@_], "Spreadsheet::Perl::StoreOnFetch" ;
 
 #-------------------------------------------------------------------------------
 
+sub DeleteFunction
+{
+return bless [@_], "Spreadsheet::Perl::DeleteFunction" ;
+}
+
+#-------------------------------------------------------------------------------
 1 ;
 
 __END__

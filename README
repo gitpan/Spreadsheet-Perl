@@ -1,4 +1,4 @@
-Spreadsheet/Perl version 0.06
+Spreadsheet/Perl version 0.07
 =============================
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet engine.
@@ -7,19 +7,11 @@ Please look at the man page for more information or the online documentation @ h
 
 In this release:
 
-	CHANGED: using re-tie thanks to Brian McCauley
-	CHANGED: DefineSpreadsheetFunction implementation, it now takes perl code for serialization
-	ADDED: prototype Read and Write functions
-	CHANGED: Function modules can now be in their own package
-	ADDED: DefineSpreadsheetFunction  takes module name for serialization
-	ADDED: PerlFormula also works as a member function and accepts multiple formulas
-	CHANGED: GetSpreadsheetReference must be given a Canonized address
-	ADDED: prototype GUI using Prima
-
-Ongoing:
-- The GUI prototype is a very simple application. Thanks to Dmtry for his help.
-- Deletion/insertion/sorting is going slowly.
-- Common format parser proposition by a contributor will be looked at soon.
+	FIXED: numeric address can embed spaces
+	ADDED: DeleteFunction callback for cells
+	FIXED: multilined formulas are serialized on multiple lines
+	ADDED: Common format support thanks to Steffen Müller
+	CHANGED: Format of this file
 
 TODO:
 

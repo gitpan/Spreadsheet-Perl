@@ -1,13 +1,27 @@
 Spreadsheet::Perl
 =================
 
-!!!!! accept x\s+,\s+y as address
+#!Use new ASCIITAble.
 
+	
 -a column/row stores default value for unset cells ? Use Fetch callback
 -spreadsheet (0,0) stores default value for unset cells ? Use Fetch callback
-- do we need delete callback for DBI?
 
-R1C1 reference in formulas => $ss{$cell - "1,1"}
+
+row/column deletion: 
+	callback or list of callbacks
+	when a row or column is deleted, all the cells with delete call back should have their CB called
+
+cell deletion:
+	#0.07 delete callback
+	should the row and column delete callback be called?
+	should the spreadsheet delete callback[s] be called
+
+What do we call before we clear the spreadsheet? rows or columns?
+
+DBI interface
+
+R1C1 reference in formulas => $ss{"+1,-3"}
 
 Insertion of rows and columns (=> formulas !!)
 Deletion of rows and columns (=> formulas !!)
@@ -16,17 +30,29 @@ Sorting (=> formulas !!)
 
 Delete and insert row should return a list a of cells which formula is changed and/or might return something diffrent
 
-write should serialize using multilines if formulas are so written.
-
 Generate graphs, pies, ..
 
-DBI interface
-
 Composite initialisation type? Composite(PerlFormula(), 7, Format(), ....) ;
-Clear(FORMULA, VALUE, FORMAT) ;
+Clear(FORMULA, VALUE, FORMAT, ALL) ;
 
-perl debugger support
+perl debugger support/triggers
 dependency graph
+
+# 0.07 ----
+
+#Common format
+	#register non spreadsheet formulas => builtin functions serialisation
+	
+	#update serialization
+	#update deserialisation
+	
+	#update documentation
+	#have a formula and a perl_formula field
+	
+#write should serialize using multilines if formulas are so written.
+#!!!!! accept x\s+,\s+y as address
+
+#-----
 
 #Fix the name export problem
 

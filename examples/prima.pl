@@ -47,6 +47,9 @@ for my $line (split /(.*?\n)/, $input)
 
 package main ;
 
+use strict;
+use warnings ;
+
 use Prima qw(Application FrameSet Edit ComboBox MsgBox Grids) ;
 
 use Spreadsheet::Perl ;
@@ -82,6 +85,7 @@ my $window = Prima::MainWindow->create
 				['c', 'Clear All'=> sub {}],
 				['f', 'Functions'=> sub {}],
 				['n', 'Names'=> sub {}],
+				['d', 'show dependencies'=> sub {}],
 				['Aa', 'About'=> sub {message_box('About', "Spreadsheet::Perl && Prima", mb::Ok)}]
 				]
 			]
@@ -131,7 +135,9 @@ my $editor = $bottom_frame->insert_to_frame
 			hScroll        => 1,
 			vScroll        => 1,
 			wantReturns    => 1,
-			pack            => { side => 'left', expand => 1, fill => 'both', padx => 20, pady => 20},
+			onEnter     => sub {print "editor: onEnter @_\n" ;},
+			onLeave     => sub {print "editor: onleave @_\n" ;},
+			pack           => { side => 'left', expand => 1, fill => 'both', padx => 20, pady => 20},
 			);
 
 tie *OUT, "PrimaOut", $output ;
@@ -144,6 +150,42 @@ $grid = $frame->insert_to_frame
 	 
 	backColor => cl::White,
 	
+	onDrawCell => sub
+			{
+			my
+				(
+				$self, 
+				$canvas, 
+				$col, $row, $xytype,
+				$x1, $y1, $x2, $y2,
+				$X1, $Y1, $X2, $Y2,
+				$xy_sel,
+				$col_row
+				) = @_ ;
+				
+			my %backup = 
+				(
+				  backColor => $self->backColor
+				, color => $self->color
+				) ;
+			
+			if(defined $ss->GetFormulaText("$col, $row"))
+				{
+				if($xy_sel)
+					{
+					$canvas-> set(backColor => cl::LightBlue, color => cl::White) ;
+					}
+				else
+					{
+					$canvas-> set(backColor => cl::White, color => cl::LightBlue) ;
+					}
+				}
+				       
+			$canvas-> clear($x1, $y1, $x2, $y2) ;
+			$canvas->text_out($self->get_cell_text($col, $row), $x1, $y1) ;
+			$canvas-> set(%backup) ;
+			},
+			
 	onSelectCell => sub
 			{
 			my ($self, $column, $row) = @_ ;
@@ -194,7 +236,9 @@ $grid = $frame->insert_to_frame
 			{
 			my ($self, $col, $row, $ref) = @_ ;
 			
-			$$ref = $ss{"$col,$row"} ;
+			my $value = $ss{"$col,$row"} ;
+			
+			$$ref = defined $value ? $value : '' ;
 			},
 	
 	allowChangeCellWidth => 1,
@@ -204,8 +248,20 @@ $grid = $frame->insert_to_frame
 	pack => { expand => 1, fill => 'both' },
 	);
 
+			
+my $formula = $ss->GetFormulaText('1,1') ;
+
+if(defined $formula)
+	{
+	$editor->insert_text($formula) ;
+	}
+else
+	{
+	$editor->insert_text($ss{'1,1'}) ;
+	}
+
 $grid->columns(100);
 $grid->rows(100);
-$grid->cellIndents(1,1);
+$grid->cellIndents(1, 1, 0, 0);
 
 Prima->run() ;

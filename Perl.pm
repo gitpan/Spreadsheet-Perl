@@ -23,14 +23,14 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( Reset ) ;
 
-our $VERSION = '0.06' ;
+our $VERSION = '0.07' ;
 
 use Spreadsheet::Perl::Address ;
 use Spreadsheet::Perl::Cache ;
 use Spreadsheet::Perl::Devel ;
 use Spreadsheet::Perl::Format ;
-use Spreadsheet::Perl::PerlFormula ;
 use Spreadsheet::Perl::Formula ;
+use Spreadsheet::Perl::PerlFormula ;
 use Spreadsheet::Perl::Function ;
 use Spreadsheet::Perl::ASCIITable;
 use Spreadsheet::Perl::Html ;
@@ -250,10 +250,9 @@ if($is_cell)
 				}
 				
 			# formula directly set into cells must get "compiled"
-			if(exists $current_cell->{FORMULA} && ! exists $current_cell->{FETCH_SUB})
+			if(exists $current_cell->{PERL_FORMULA} && ! exists $current_cell->{FETCH_SUB})
 				{
-				#assume perl formula, this might change
-				my $formula = $current_cell->{FORMULA} ;
+				my $formula = $current_cell->{PERL_FORMULA} ;
 				
 				$current_cell->{NEED_UPDATE} = 1 ;
 				($current_cell->{FETCH_SUB}, $current_cell->{GENERATED_FORMULA}) = GeneratePerlFormulaSub
@@ -265,7 +264,24 @@ if($is_cell)
 															, (@$formula)[1 .. (@$formula - 1)]
 															) ;
 				}
-			
+			else
+				{
+				if(exists $current_cell->{FORMULA} && ! exists $current_cell->{FETCH_SUB})
+					{
+					my $formula = $current_cell->{FORMULA} ;
+					
+					$current_cell->{NEED_UPDATE} = 1 ;
+					($current_cell->{FETCH_SUB}, $current_cell->{GENERATED_FORMULA}) = GenerateFormulaSub
+															(
+															  $self
+															, $address
+															, $address
+															, $formula->[0]
+															, (@$formula)[1 .. (@$formula - 1)]
+															) ;
+					}
+				}
+				
 			if(exists $current_cell->{FETCH_SUB}) # formula or fetch callback
 				{
 				if($current_cell->{NEED_UPDATE} || ! exists $current_cell->{NEED_UPDATE} || ! exists $current_cell->{VALUE})
@@ -531,18 +547,29 @@ for my $current_address ($self->GetAddressList($address))
 				last ;
 				} ;
 				
-			/^Spreadsheet::Perl::PerlFormula$/ && do
+			(
+			   /^Spreadsheet::Perl::Formula$/
+			|| /^Spreadsheet::Perl::PerlFormula$/
+			) && do
 				{
 				delete $current_cell->{VALUE} ;
 				
 				my $sub_generator = $value->[0] ;
 				my $formula = $value->[1] ;
 				
-				$current_cell->{FETCH_SUB_ARGS}      = [(@$value)[2 .. (@$value - 1)]] ;
-				$current_cell->{FORMULA}       = $value ;
-				$current_cell->{NEED_UPDATE}   = 1 ;
-				$current_cell->{ANCHOR}        = $address ;
-				($current_cell->{FETCH_SUB}, , $current_cell->{GENERATED_FORMULA}) = $sub_generator->(
+				if(/^Spreadsheet::Perl::Formula$/)
+					{
+					$current_cell->{FORMULA} = $value ;
+					}
+				else
+					{
+					$current_cell->{PERL_FORMULA} = $value ;
+					}
+				
+				$current_cell->{FETCH_SUB_ARGS} = [(@$value)[2 .. (@$value - 1)]] ;
+				$current_cell->{NEED_UPDATE}    = 1 ;
+				$current_cell->{ANCHOR}         = $address ;
+				($current_cell->{FETCH_SUB}, $current_cell->{GENERATED_FORMULA}) = $sub_generator->(
 															  $self
 															, $current_address
 															, $address #anchor
@@ -602,8 +629,17 @@ for my $current_address ($self->GetAddressList($address))
 				last
 				} ;
 				
+			/^Spreadsheet::Perl::DeleteFunction/ && do
+				{
+				$current_cell->{DELETE_SUB_INFO}    = $value->[0] ;
+				$current_cell->{DELETE_SUB}         = $value->[1] ;
+				$current_cell->{DELETE_SUB_ARGS}    = [ @$value[2 .. (@$value - 1)] ] ;
+				last
+				} ;
+				
 			# cleanup commonly uneeded data
 			delete $current_cell->{FORMULA} ;
+			delete $current_cell->{PERL_FORMULA} ;
 			delete $current_cell->{ANCHOR} ;
 			
 			unless(exists $current_cell->{IS_REFERENCE})
@@ -720,7 +756,17 @@ my $address = shift ;
 
 for my $current_address ($self->GetAddressList($address))
 	{
-	delete $self->{CELLS}{$current_address} ;
+	if(exists $self->{CELLS}{$current_address}{DELETE_SUB})
+		{
+		if($self->{CELLS}{$current_address}{DELETE_SUB}->($self, $current_address, @{$self->{CELLS}{$current_address}{DELETE_SUB_ARGS}}))
+			{
+			delete $self->{CELLS}{$current_address} ;
+			}
+		}
+	else
+		{
+		delete $self->{CELLS}{$current_address} ;
+		}
 	}
 }
 
@@ -729,7 +775,7 @@ sub CLEAR
 my $self    = shift ;
 my $address = shift ;
 
-delete $self->{CELLS} ;
+delete $self->{CELLS} ; # must call all set functions! and delete? functions?
 }
 
 sub EXISTS   
@@ -832,21 +878,21 @@ Spreadsheet::Perl - Pure Perl implementation of a spreadsheet engine
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet engine. 
 
-Spreadsheet::Perl is quite small but can do the the following:
+Spreadsheet::Perl functionality:
 
 =over 2
 
 =item * set and get values from cells or ranges
 
-=item * cell private data
+=item * handle cell private data
 
-=item * fetch/store callback
+=item * has fetch/store callback
 
-=item * cell attributes access
+=item * has cell attributes access
 
-=item * cell/range fillers (auto-fill functionality)
+=item * has cell/range fillers (auto-fill functionality)
 
-=item * set formulas (pure perl)
+=item * set formulas (pure perl and common format) 
 
 =item * compute the dependencies between cells 
 
@@ -884,13 +930,13 @@ Spreadsheet::Perl is quite small but can do the the following:
 
 =item * slice access
 
-=item * Perl variable mapping to a cell
+=item * Perl scalar mapping to a cell
 
 =item * some debugging tool (dump, dump table, dump to HTML, formula stack trace, ...)
 
 =back
 
-Look at the 'tests' directory for some examples.
+Look at the 'examples' directory for some examples.
 
 =head1 DRIVING FORCE
 
@@ -943,7 +989,7 @@ I want B<Spreadsheets::Perl> to:
 
 =over 2
 
-=item * Be Perl, be Perl, be fully Perl
+=item * Be Perl, be only Perl
 
 =item * Be easy to develop, I try to implement nothing that is already there
 
@@ -981,7 +1027,7 @@ spreadsheet functions are accessed through the tied object.
 						{
 						VALUE => 'there'
 						#~ or
-						#~ FORMULA => '$ss{A1}'
+						#~ PERL_FORMULA => '$ss{A1}'
 						}
 				} ;
 
@@ -1067,7 +1113,7 @@ Generates:
 
 =head2 reading and writing  a spreadsheet from a file
 
-Version 0.06 has, prototype, functionality to read and write spreadsheets.
+Version 0.06 has, prototype, functionality to read and write spreadsheets. Serializing of common format formulas are also supported.
 
   use Spreadsheet::Perl ;
   
@@ -1087,7 +1133,7 @@ Version 0.06 has, prototype, functionality to read and write spreadsheets.
   
   print $ss->DumpTable() ;
 
-You can find a small example in I<tests/read_write.>. See also: L<Function definition> bellow.
+You can find a small example in I<examples/read_write.>. See also: L<Function definition> bellow.
 
 =head2 Dumping a table
 
@@ -1245,7 +1291,7 @@ Addresses are composed of:
 
 =back
 
-The following are valid addresses: A1 TEST!A1 A1:BB5 TESTA5:CE43
+The following are valid addresses: A1 TEST!A1 A1:BB5 TEST!A5:CE43
 
 For a range, the order of the baseAA figures is important!
 
@@ -1255,7 +1301,7 @@ but
 
   $ss{'A1:D5'} = PerlFormula('$ss{H10}'); is NOT equivalent to $ss{'D5:A1'} = PerlFormula('$ss{H10}'); 
   
-because formulas get regenerated for each cell. Spreadsheet::Perl goes from the first baseAA figure
+because formulas are regenerated for each cell. Spreadsheet::Perl goes from the first baseAA figure
 to the second one by iterating the row, then the column.
 
 It is also possible to index cells with numerals only: $ss{"1,7"}. Remember that A is 1 and there are
@@ -1505,7 +1551,7 @@ generate:
 =head3 setting a formula
 
 Formulas can be written in different formats. The native format is perl code. There seems
-to be a consensus about what standard format the formulas should use, that format is called common format.
+to be a consensus about what standard format the formulas should use, I call that format "common format".
 
 =head4 Native format
 
@@ -1583,6 +1629,56 @@ someone thought it was too difficult to present a mutiline editor to the end use
   
 If Someone feels that the common format (or any other language) is more "appropriate" than Perl and 
 contributes a translator, I'll be happy to add it to the distribution.
+
+Steffen Müller (author of Math::Symbolic) was nice enough to contribute a translator for the 0.07 release. This doesn't make 
+Spreadsheet::Perl compatible with Gnumeric but goes a long way towards that goal.
+
+  $ss->Formula
+	(
+	  B1      => 'cos(A1 + A2)'
+	, B2      => 'A4 + A3'
+	, 'B3:B5' => 'log(A4) + A3'
+	, 'B6:b7' => 'Sum(A4:A5) + Sum(A3)'
+	, B8      => 'log(Sum(A4:A5)) + log(A3)'
+	) ;
+
+Examples of translation:
+
+  SSHEET!A1:BB15 => $ss{'SSHEET!A1:BB15'}
+
+  SSHEET!A1 => $ss{'SSHEET!A1'}
+
+  2*Sum(SSHEET!A1:AD4)+log(A5) => ((2 * $ss->Sum('SSHEET!A1:AD4')) + log($ss{'A5'}))
+
+  Function(Sum(SSHEET!A1:B1)^cos(Sum(SSHEET!NAMEDRANGE))) =>
+  $ss->Function(($ss->Sum('SSHEET!A1:B1') ** cos($ss->Sum('SSHEET!NAMEDRANGE'))))
+
+Note that some functions are translated as class functions ('Sum' in the example above) and other as global functions
+('log' in the example above). Spreadsheet::Perl doesn't define any global functions (this will certainly change when I 
+have time to go through this). The funtions bellow let manipulate the global functions. Spreadsheet::Perl will re-compile the
+translator as needed.
+
+=over 2
+
+=item * SetBuiltin. Sets the list of the declared functions.
+
+  SetBuiltin qw( atan ) ; # only 'atan' is available now
+
+=item * AddBuiltin, adds one or more functions to the global functions declarations.
+
+  AddBuiltin qw( log sin cos ) ;
+  
+=item * GetBuiltin, Returns the list of the declared functions.
+
+  my @declared_builtin = GetBuiltin() ;
+
+=back
+
+Common format formulas come at a cost. To translate the formula, Parse::Recdescent must be loaded 
+(that times at 0.25s on my 700 MHz box), the grammar must be compiled and the formulas translated.
+This can amout to seconds when compared to pure perl formulas. Nevertheless, this is very good to experiment 
+with. If needed, the parser can be tinkered with or re-written in C. Once the formulas are translated, you get
+the same speed as the perl format formulas.
 
 =head3 RangeValues
 
@@ -1696,7 +1792,7 @@ B<FetchFunction> takes these arguments
 
 =over 2
 
-=item 1 - a descriptioin string
+=item 1 - a description string
 
 =item 2 - a sub reference
 
@@ -1734,7 +1830,7 @@ B<StoreFunction> takes the following arguments:
 
 =over 2
 
-=item 1 - a descriptioin string
+=item 1 - a description string
 
 =item 2 - a sub reference
 
@@ -1757,7 +1853,37 @@ The callback is called with these arguments
 =back
 
 Your store callback must store the data directly in the spreadsheet data structure without calling the Store/Set functions.
-You can find a typical implementation in the examples.s
+You can find a typical implementation in the examples.
+
+=head3 Delete callback
+
+You can also attach a 'delete' sub to a cell. Your sub will be called when the cell is deleted.
+
+  $ss{'A1:A5'} = DeleteFunction('description', \&DeleteCallback, 1, 2, 3) ;
+
+B<StoreFunction> takes the following arguments:
+
+=over 2
+
+=item 1 - a description string
+
+=item 2 - a sub reference
+
+=item 3 - an optional list of arguments to be passed when the callback is, well, called.
+
+=back
+
+The callback is called with these arguments
+
+=over 2
+
+=item 1 - a spreadsheet object reference
+
+=item 2 - the address of the cell to set
+
+=item 3 - the, optional, arguments passed to StoreFunction
+
+=back
 
 =head2 Perl scalar mapping
 
@@ -1970,6 +2096,8 @@ Here are some of the things that I find missing, this doesn't mean all are good 
 =item * printing, exporting
 
 =item * importing from other spreadsheets
+
+=item * Gnumeric/Excel formula syntax (common format is done)	
 
 =item * complex stuff (I am working on this but Gnumeric and excel do diffrent things)
 

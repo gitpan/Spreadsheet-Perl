@@ -44,9 +44,9 @@ print $ss->DumpTable
 		  ['A4:AD5']
 		, undef
 		, {
-		    alignHeadRow => 'center',
-		  , headingText  => $ss->GetName()
-		  , noPageCount  => 1
+		    #~ alignHeadRow => 'center',
+		  #~ , headingText  => $ss->GetName()
+		  #~ , noPageCount  => 1
 		  }
 		) ;
 

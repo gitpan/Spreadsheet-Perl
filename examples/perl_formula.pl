@@ -26,7 +26,7 @@ print "'A10' Self: " . $ss{A10} . "\n" ;
 
 $ss->PF
 	(
-	  B1 => '$ss{A1} + $ss{A2}'
+	  B1 => 'cos($ss{A1} + $ss{A2})'
 	, B2 => '$ss{A4} + $ss{A3}'
 	, 'B3:B5' => '$ss{A4} + $ss{A3}'
 	) ;
