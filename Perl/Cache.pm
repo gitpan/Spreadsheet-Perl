@@ -64,7 +64,7 @@ else
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Cache- Cell caching support for Spreadsheet::Perl
+Spreadsheet::Perl::Cache - Cell caching support for Spreadsheet::Perl
 
 =head1 SYNOPSIS
 

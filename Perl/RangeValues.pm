@@ -44,7 +44,7 @@ return bless [@_], "Spreadsheet::Perl::RangeValuesSub" ;
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::RangeValues- Helper functions to fill cell ranges
+Spreadsheet::Perl::RangeValues - Helper functions to fill cell ranges
 
 =head1 SYNOPSIS
 

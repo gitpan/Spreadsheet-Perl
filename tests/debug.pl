@@ -18,7 +18,10 @@ print $ss->Dump(undef, 0, {USE_ASCII => 1}) ;
 $ss->{DEBUG}{SUB}++ ; # show whenever a value has to be calculated
 $ss->{DEBUG}{FETCHED}++ ; # counts how many times the cell is fetched
 $ss->{DEBUG}{STORED}++ ; # counts how many times the cell is stored
+
 $ss->{DEBUG}{PRINT_FORMULA}++ ; # show the generated formulas
+$ss->{DEBUG}{INLINE_INFORMATION}++ ; #inline information about the cell in the 2D dump
+
 $ss->{DEBUG}{DEFINED_AT}++ ; # show where the cell has been defined
 $ss->{DEBUG}{ADDRESS_LIST}++ ; # shows the generated address lists
 $ss->{DEBUG}{FETCH_FROM_OTHER}++ ; # show when an inter spreadsheet value is fetched

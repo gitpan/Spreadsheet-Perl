@@ -101,7 +101,7 @@ return
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Validator- Cell Validators
+Spreadsheet::Perl::Validator - Cell Validators
 
 =head1 SYNOPSIS
 

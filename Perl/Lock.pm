@@ -119,7 +119,7 @@ else
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Lock- Lock support for Spreadsheet::Perl
+Spreadsheet::Perl::Lock - Lock support for Spreadsheet::Perl
 
 #~ =head1 SYNOPSIS
 =head1 TODO

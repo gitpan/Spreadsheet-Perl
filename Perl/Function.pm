@@ -21,7 +21,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
 #~ our @EXPORT = qw( StoreFunction FetchFunction) ;
 our @EXPORT ;
-push @EXPORT, qw( StoreFunction FetchFunction) ;
+push @EXPORT, qw( StoreFunction FetchFunction StoreOnFetch) ;
 
 our $VERSION = '0.01' ;
 
@@ -29,6 +29,7 @@ our $VERSION = '0.01' ;
 
 sub StoreFunction
 {
+confess "First argument to 'StoreFunction' should be a description" unless '' eq ref $_[0] ;
 return bless [@_], "Spreadsheet::Perl::StoreFunction" ;
 }
 
@@ -36,7 +37,15 @@ return bless [@_], "Spreadsheet::Perl::StoreFunction" ;
 
 sub FetchFunction
 {
+confess "First argument to 'FetchFunction' should be a description" unless '' eq ref $_[0] ;
 return bless [@_], "Spreadsheet::Perl::FetchFunction" ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub StoreOnFetch
+{
+return bless [@_], "Spreadsheet::Perl::StoreOnFetch" ;
 }
 
 #-------------------------------------------------------------------------------
@@ -46,7 +55,7 @@ return bless [@_], "Spreadsheet::Perl::FetchFunction" ;
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Function- Function support for Spreadsheet::Perl
+Spreadsheet::Perl::Function - Function support for Spreadsheet::Perl
 
 =head1 SYNOPSIS
 

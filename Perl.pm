@@ -23,7 +23,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( Reset ) ;
 
-our $VERSION = '0.04' ;
+our $VERSION = '0.05' ;
 
 use Spreadsheet::Perl::Address ;
 use Spreadsheet::Perl::Cache ;
@@ -32,6 +32,7 @@ use Spreadsheet::Perl::Format ;
 use Spreadsheet::Perl::PerlFormula ;
 use Spreadsheet::Perl::Formula ;
 use Spreadsheet::Perl::Function ;
+use Spreadsheet::Perl::ASCIITable;
 use Spreadsheet::Perl::Html ;
 use Spreadsheet::Perl::Lock ;
 use Spreadsheet::Perl::QuerySet ;
@@ -42,7 +43,7 @@ use Spreadsheet::Perl::Validator ;
 
 #-------------------------------------------------------------------------------
 
-sub GetDefaultData
+sub GetSpreadsheetDefaultData
 { 
 return 
 	(
@@ -74,7 +75,7 @@ if(defined $setup)
 	{
 	if('HASH' eq ref $setup)
 		{
-		%$self = (GetDefaultData(), %$setup) ;
+		%$self = (GetSpreadsheetDefaultData(), %$setup) ;
 		}
 	else
 		{
@@ -101,7 +102,7 @@ my $class = shift ;
 
 my $self = 
 	{
-	  GetDefaultData()
+	  GetSpreadsheetDefaultData()
 	, @_ 
 	} ;
 
@@ -194,18 +195,8 @@ if($is_cell)
 				}
 			else
 				{
-				my $value_text  ;
-				if(exists $self->{CELLS}{$start_cell})
-					{
-					$value_text = defined $self->{CELLS}{$start_cell} ? "$self->{CELLS}{$start_cell}{VALUE}" : 'undef' ;
-					}
-				else
-					{
-					$value_text    = "cell doesn't exist!" unless exists $self->{CELLS}{$start_cell} ;
-					}
-				
 				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-				print $dh "Fetching cell '$start_cell' => $value_text\n" ;
+				print $dh "Fetching cell '$start_cell'.\n" ;
 				}
 			}
 		}
@@ -216,14 +207,7 @@ if($is_cell)
 		
 		if(defined $attribute)
 			{
-			if(exists $current_cell->{$attribute})
-				{
-				$value = $current_cell->{$attribute} ;
-				}
-			else
-				{
-				$value = undef ;
-				}
+			$value = $current_cell->{$attribute} if(exists $current_cell->{$attribute}) ;
 			}
 		else
 			{
@@ -232,6 +216,7 @@ if($is_cell)
 				$current_cell->{FETCHED}++ ;
 				}
 				
+			# circular deoendency checking
 			my $caller ;
 			
 			if(exists $current_cell->{CYCLIC_FLAG})
@@ -259,6 +244,7 @@ if($is_cell)
 				print $dh $self->DumpDependentStack() ;
 				}
 				
+			# formula directly set into cells must get "compiled"
 			if(exists $current_cell->{FORMULA} && ! exists $current_cell->{FETCH_SUB})
 				{
 				#assume perl formula, this might change
@@ -275,7 +261,7 @@ if($is_cell)
 															) ;
 				}
 			
-			if(exists $current_cell->{FETCH_SUB})
+			if(exists $current_cell->{FETCH_SUB}) # formula or fetch callback
 				{
 				if($current_cell->{NEED_UPDATE} || ! exists $current_cell->{NEED_UPDATE} || ! exists $current_cell->{VALUE})
 					{
@@ -305,6 +291,18 @@ if($is_cell)
 						$value = ($current_cell->{FETCH_SUB})->($self, $start_cell) ;
 						}
 						
+					if(exists $current_cell->{STORE_SUB} && exists $current_cell->{STORE_ON_FETCH})
+						{
+						if(exists $current_cell->{STORE_SUB_ARGS} && @{$current_cell->{STORE_SUB_ARGS}})
+							{
+							$current_cell->{STORE_SUB}->($self, $start_cell, $value, @{$current_cell->{STORE_SUB_ARGS}}) ;
+							}
+						else
+							{
+							$current_cell->{STORE_SUB}->($self, $start_cell, $value) ;
+							}
+						}
+					
 					# handle caching
 					if((! $self->{CACHE}) || (exists $current_cell->{CACHE} && (! $current_cell->{CACHE})))
 						{
@@ -355,6 +353,32 @@ if($is_cell)
 			print $dh $self->DumpDependentStack() ;
 			
 			pop @{$self->{DEPENDENT_STACK}} ;
+			}
+			
+		# handle headers and default values
+		my ($column, $row) = ConvertAdressToNumeric($start_cell) ;
+		
+		if($column == 0 && $row == 0)
+			{
+			$value = ToAA($column) ;
+			}
+		else
+			{
+			if($column == 0)
+				{
+				$value = $row ;
+				}
+			else
+				{
+				if($row == 0)
+					{
+					$value = ToAA($column) ;
+					}
+				else
+					{
+					# default value
+					}
+				}
 			}
 		}
 		
@@ -546,12 +570,23 @@ for my $current_address ($self->GetAddressList($address))
 				last ;
 				} ;
 			
+			/^Spreadsheet::Perl::StoreFunction$/ && do
+				{
+				delete $current_cell->{VALUE} ;
+				
+				$current_cell->{STORE_SUB_INFO} = $value->[0] ;
+				$current_cell->{STORE_SUB}      = $value->[1] ;
+				$current_cell->{STORE_SUB_ARGS} = [ @$value[2 .. (@$value - 1)] ] ;
+				last ;
+				} ;
+				
 			/^Spreadsheet::Perl::FetchFunction$/ && do
 				{
 				delete $current_cell->{VALUE} ;
 				
-				$current_cell->{FETCH_SUB}         = $value->[0] ;
-				$current_cell->{FETCH_SUB_ARGS}    = [ @$value[1 .. (@$value - 1)] ] ;
+				$current_cell->{FETCH_SUB_INFO}    = $value->[0] ;
+				$current_cell->{FETCH_SUB}         = $value->[1] ;
+				$current_cell->{FETCH_SUB_ARGS}    = [ @$value[2 .. (@$value - 1)] ] ;
 				$current_cell->{NEED_UPDATE} = 1 ;
 				last ;
 				} ;
@@ -559,6 +594,12 @@ for my $current_address ($self->GetAddressList($address))
 			/^Spreadsheet::Perl::UserData$/ && do
 				{
 				$current_cell->{USER_DATA} = {@$value} ;
+				last
+				} ;
+				
+			/^Spreadsheet::Perl::StoreOnFetch$/ && do
+				{
+				$current_cell->{STORE_ON_FETCH}++ ;
 				last
 				} ;
 				
@@ -581,20 +622,13 @@ for my $current_address ($self->GetAddressList($address))
 				delete $current_cell->{STORE_SUB_ARGS} ;
 				delete $current_cell->{FETCH_SUB_ARGS} ;
 				
-				$current_cell->{IS_REFERENCE} = 1 ;
-				$current_cell->{STORE_SUB} = $value->[0] ;
-				$current_cell->{FETCH_SUB} = $value->[1] ;
-				$current_cell->{CACHE} = 0 ;
+				$current_cell->{IS_REFERENCE}   = 1 ;
+				$current_cell->{STORE_SUB_INFO} = $value->[0] ;
+				$current_cell->{STORE_SUB}      = $value->[1] ;
+				$current_cell->{FETCH_SUB_INFO} = $value->[0] ;
+				$current_cell->{FETCH_SUB}      = $value->[2] ;
+				$current_cell->{CACHE}          = 0 ;
 				last
-				} ;
-				
-			/^Spreadsheet::Perl::StoreFunction$/ && do
-				{
-				delete $current_cell->{VALUE} ;
-				
-				$current_cell->{STORE_SUB}         = $value->[0] ;
-				$current_cell->{STORE_SUB_ARGS}    = [ @$value[1 .. (@$value - 1)] ] ;
-				last ;
 				} ;
 				
 			#----------------------
@@ -780,8 +814,8 @@ Spreadsheet::Perl - Pure Perl implementation of a spreadsheet engine
   tie my %ss, "Spreadsheet::Perl"
   my $ss = tied %ss ;
 
-  $ss->SetRangeName("TestRange", 'A5:B8') ;
-  $ss{TestRange} = '7' ;
+  $ss->SetNames("TEST_RANGE" => 'A5:B8') ;
+  $ss{TEST_RANGE} = '7' ;
   
   $ss->DefineFunction('AddOne', \&AddOne) ;
   
@@ -852,7 +886,7 @@ Spreadsheet::Perl is minimal in size but can do the the following:
 
 =item * slice access
 
-=item * some debugging tool (dump, dump to HTML, formula stack trace, ...)
+=item * some debugging tool (dump, dump table, dump to HTML, formula stack trace, ...)
 
 =back
 
@@ -890,6 +924,18 @@ visual programming but still fit spreadsheets as they are often GUI based)
 =item * SP allows for user customization 
 
 =back
+
+For a more technical insight check:
+
+L<http://www.cs.uno.edu/~markus/02_Courses/past/csci6990/6990.03_Spreadsheet.ppt.pdf>
+
+The Spreadsheet FAQ might be of use:
+
+L<http://www.faqs.org/faqs/spreadsheets/faq/>
+
+and an interresting curiosa:
+
+L<http://www.uq.net.au/detective/>
 
 =head2 How
 
@@ -1019,6 +1065,140 @@ Generates:
   Spreadsheet::Perl=HASH(0x825540c) 'TEST' dump end
   ------------------------------------------------------------
 
+=head2 Dumping a table
+
+Håkon Nessjøen (author of Text::ASCIITable) was nice enough to contribute a module to dump 
+the spreadsheet in table form.
+
+The functionality can be access through two function names. I<DumpTable> (an alias) and I<GenerateASCIITable>.
+The functions take the following arguments:
+
+=over 2
+
+=item 1- a list of ranges within an array reference or 'undef' for the whole spreadsheet
+
+=item 2- a boolean, when set, the spreadsheet attributes are also displayed
+
+=item 3- options passed to Text::ASCIITable
+
+=item 4- arguments passed to Text::ASCIITable::draw
+
+=back
+
+Most of the time you'll call I<DumpTable> without argument or with the first argument set.
+
+  print $ss->DumpTable() ;
+  
+  generates :
+  
+  .----------------------------------------------------.
+  | @  | A   | B   | C   | D   | E   | F   | G   | H   |
+  |====================================================|
+  | 1  | A1  | B1  | C1  | D1  | E1  | F1  | G1  | H1  |
+  |----+-----+-----+-----+-----+-----+-----+-----+-----|
+  | 2  | A2  | B2  | C2  | D2  | E2  | F2  | G2  | H2  |
+  |----+-----+-----+-----+-----+-----+-----+-----+-----|
+  | 3  | A3  | B3  | C3  | D3  | E3  | F3  | G3  | H3  |
+  |----+-----+-----+-----+-----+-----+-----+-----+-----|
+  ...
+  ...
+  |----+-----+-----+-----+-----+-----+-----+-----+-----|
+  | 10 | A10 | B10 | C10 | D10 | E10 | F10 | G10 | H10 |
+  '----------------------------------------------------'
+  
+  print $ss->DumpTable(['B4:C5', 'A2:B6', 'NAMED_RANGE']) ;
+  
+  .-------------.
+  | @ | B  | C  |
+  |=============|
+  | 4 | B4 | C4 |
+  |---+----+----|
+  | 5 | B5 | C5 |
+  '-------------'
+  
+  .-------------.
+  | @ | A  | B  |
+  |=============|
+  | 2 | A2 | B2 |
+  |---+----+----|
+  | 3 | A3 | B3 |
+  |---+----+----|
+  | 4 | A4 | B4 |
+  |---+----+----|
+  | 5 | A5 | B5 |
+  |---+----+----|
+  | 6 | A6 | B6 |
+  '-------------'
+  
+  .-------------------------------------------------------.
+  | @ | A  | B  | C  | D  | E  | F  | G  | H  | I | J | K |
+  |=======================================================|
+  | 4 | A4 | B4 | C4 | D4 | E4 | F4 | G4 | H4 |   |   |   |
+  |---+----+----+----+----+----+----+----+----+---+---+---|
+  | 5 | A5 | B5 | C5 | D5 | E5 | F5 | G5 | H5 |   |   |   |
+  '-------------------------------------------------------'
+  
+  print $ss->DumpTable
+  		(
+  		  undef
+  		, undef 
+  		, {
+  		    alignHeadRow => 'center',
+  		  , headingText  => 'Some Title'
+  		  }
+  		) ;
+
+  .------------------------------------------------------.
+  |                      Some Title                      |
+  |======================================================|
+  | @ |                     A                    | B | C |
+  |======================================================|
+  | 1 | datadatadatadatadatadatadatadatadatadata | B | B |
+  |---+------------------------------------------+---+---|
+  | 2 | datadatadatadatadatadatadatadatadatadata | B | B |
+  |---+------------------------------------------+---+---|
+  | 3 | datadatadatadatadatadatadatadatadatadata |   |   |
+  |---+------------------------------------------+---+---|
+  | 4 | datadatadatadatadatadatadatadatadatadata |   |   |
+  |---+------------------------------------------+---+---|
+  | 5 | datadatadatadatadatadatadatadatadatadata |   |   |
+  |---+------------------------------------------+---+---|
+  | 6 |                                          |   |   |
+  |---+------------------------------------------+---+---|
+  | 7 |                                          |   |   |
+  |---+------------------------------------------+---+---|
+  | 8 | C                                        |   |   |
+  '------------------------------------------------------'
+
+It is possible to give a page width. if the page width is not set, the screen width is used.
+If there is no screen width available (redirecting to a file for example) B<78> is used as a width.
+
+  print $ss->DumpTable(['A4:O5'], undef, {pageWidth => 40}) ;
+  
+  .--------------------------------------------
+  | @ | A  | B  | C  | D  | E  | F  | G  | H  |
+  |============================================
+  | 4 | A4 | B4 | C4 | D4 | E4 | F4 | G4 | H4 |
+  |---+----+----+----+----+----+----+----+----+
+  | 5 | A5 | B5 | C5 | D5 | E5 | F5 | G5 | H5 |
+  '--------------------------------------------
+  'TEST' 1/4.
+  
+  .--------------------------------------------
+  | @ | I | J | K | L | M | N | O | P | Q | R |
+  |============================================
+  | 4 |   |   |   |   |   |   |   |   |   |   |
+  |---+---+---+---+---+---+---+---+---+---+---+
+  | 5 |   |   |   |   |   |   |   |   |   |   |
+  '--------------------------------------------
+  'TEST' 2/4.
+
+  ...
+  
+You can set the 'noPageCount' option if you don't want the page count.
+
+See B<Text::ASCIITable>.
+
 =head1 CELL and RANGE: ADDRESSING, NAMING
 
 Cells are index  with a scheme I call baseAA1 (please let me know if it has a better name).
@@ -1072,6 +1252,18 @@ It is possible to give a name to a cell or to a range:
   print  "First range: @{$ss{FIRST_RANGE}}\n" ;
 
 Names must be upper case.
+
+=head1 NAMING ROW AND COLUMN HEADERS
+
+The spread cells are indexed from '1,1' which is 'A1' in baseAA. The column headers start at
+'A0' to 'ZZZZ0'. The row header start at '0,1' to '0,n'. You can either use the previous notation
+or use '@' to represent 0 in baseAA thus '@1' represents the header for row 1.
+
+  $ss{A0} = 'column 1' ;
+  
+  $ss{'@1'} = 'row 1' ; 
+  # or
+  $ss{'0,1'} = 'row 1' ;
 
 =head1 OTHER SPREADSHEET
 
@@ -1293,7 +1485,7 @@ The following variables are available in the formula:
 
 =head5 Automatic cell address offsetting
 
-If a range is assigned a formula, the cell addresses within the formulas are automatically offset ed, fixed
+If a range is assigned a formula, the cell addresses within the formulas are automatically offseted, fixed
 address element can be protected by square brackets.
 
   # formula 1
@@ -1429,17 +1621,20 @@ You can map your own set of Fetch and Store data from/in  a cell. You will be wo
 I recommend that you don't use this system to compute values depending on other cells; the dependency mechanism
 will still work but it is better to use formula so it will still work when row/columns deleting/inserting is
 implemented. This mechanism is still very useful when you need to access a value that changes between cell 
-access and is not depending on other cells.
+access and is not depending on other cells. The description field is displayed when generating a table and 
+$ss->{DEBUG}{INLINE_INFORMATION} is set, that can be of a great help when debugging your spreadsheet.
 
-  $ss{A1} = FetchFunction(\&MySub) ;
+  $ss{A1} = FetchFunction('some description', \&MySub) ;
 
 B<FetchFunction> takes these arguments
 
 =over 2
 
-=item 1 - a sub reference
+=item 1 - a descriptioin string
 
-=item 2 - an optional list of arguments
+=item 2 - a sub reference
+
+=item 3 - an optional list of arguments
 
 =back
 
@@ -1467,15 +1662,17 @@ off for that cell.
 
 You can also attach a 'store' sub to a cell. whenever the cell is assigned a value, your sub will be called.
 
-  $ss{'A1:A5'} = StoreFunction(\&StorePlus, 5) ;
+  $ss{'A1:A5'} = StoreFunction('description', \&StorePlus, 5) ;
 
 B<StoreFunction> takes the following arguments:
 
 =over 2
 
-=item 1 - a sub reference
+=item 1 - a descriptioin string
 
-=item 2 - an optional list of arguments to be passed when the callback is, well, called.
+=item 2 - a sub reference
+
+=item 3 - an optional list of arguments to be passed when the callback is, well, called.
 
 =back
 
@@ -1504,7 +1701,7 @@ Even if that process cannot be eliminated, B<Spreadsheet::Perl> can do half the 
 
   my $variable = 25 ;
   
-  $ss{A1} = Ref(\$variable) ;
+  $ss{A1} = Ref('description', \$variable) ;
   $ss{A2} = PerlFormula('$ss{A1}') ;
   
   print "$ss{A1} $ss{A2}\n" ;
@@ -1517,6 +1714,7 @@ B<Ref> can be called as attribute creator (as above) or as a spreadsheet member 
 
   $ss->Ref
 	(
+	'description',
 	A1      => \($struct->{something}), 
 	A2      => \$variable,
 	'A3:A5' => \$variable
@@ -1530,6 +1728,23 @@ Simply delete the cell:
 
   delete ${A1} ;
   
+=head2 Store on fetch
+
+You can direct Spreadsheet::Perl to call the 'store callback' of a cell everytime the cell is fetched. What is this good for?
+Here is an example:
+
+  $ss{A3} = PF('$ss{A1} + $ss{A2}') ;
+  
+  $ss{A3} = StoreOnFetch() ; # set the store on fetch attribute for this cell
+  
+  $ss{A3} = StoreFunction('formula to db', \&MyStoreCallback) ;
+  
+  $ss{'A1:A2'} = 10 ;
+  $ss->Recalculate() ;
+
+This lets you calculate the value of a cell through a formula and store that value wherever you wish to. For example a database,
+a perl scalar or even mail the value.
+
 =head2 Reading values
 
 Use the normal perl assignment:
@@ -1590,11 +1805,13 @@ This way of accessing the attributes, and which attributes exist, may change in 
 =head2 HTML
 
 As of version 0.04, there is a simple way to generate HTML tables. It uses the B<Data::Table> module. This is an 
-interim solution but it might just do what you want.
+interim solution and it is limited but it might just do what you want.
 
   ...
   print $ss->GenerateHtml() ;
   $ss->GenerateHtmlToFile('output_file_name.html') ;
+
+See L<Dumping a table>.
 
 =head1 DEBUGGING
 
@@ -1614,10 +1831,6 @@ It returns a string containing the dump.
 
 =back
 
-If B<Data::TreeDumper> is not installed, Data::Dumper is used.I exclusively use B<Data::TreeDumper> so 
-I never look at the dumps generated through Data::Dumper. It will certainly look ugly or might even be broken.
-Install B<Data::TreeDumper>, it's worth it (I've written it so I have to force you to try it :-)
-
 =head2 Debug handle
 
 All debug output is done through the handle set in $ss{DEBUG}{HANDLE}. It is set to STDERR but could 
@@ -1627,13 +1840,16 @@ be set to a file or other logging facilities.
 
 =head3 $ss->{DEBUG}
 
-I don't debug flags I use while developing B<Spreadsheet::Perl> if I think it can be useful to the user (that's me at least).
+I don't removes the flags I create while developing B<Spreadsheet::Perl> if I think it can be useful to the user (that's me at least).
 The following flags exist:
 
   $ss->{DEBUG}{SUB}++ ; # show whenever a value has to be calculated
   $ss->{DEBUG}{FETCHED}++ ; # counts how many times the cell is fetched
   $ss->{DEBUG}{STORED}++ ; # counts how many times the cell is stored
+  
   $ss->{DEBUG}{PRINT_FORMULA}++ ; # show the generated formulas
+  $ss->{DEBUG}{INLINE_INFORMATION}++ ; #inline cell information in the table dump
+  
   $ss->{DEBUG}{DEFINED_AT}++ ; # show where the cell has been defined
   $ss->{DEBUG}{ADDRESS_LIST}++ ; # shows the generated address lists
   $ss->{DEBUG}{FETCH_FROM_OTHER}++ ; # show when an inter spreadsheet value is fetched
@@ -1727,7 +1943,9 @@ are welcome at <nadim@khemir.net>.
 
 B<Spreadsheet::ConvertAA>.
 
-B<Data::TreeDumper> is used if found (I recommend installing it to get nice dumps).
+B<Data::TreeDumper>.
+
+B<Text::ASCIITable>.
 
 =cut
 

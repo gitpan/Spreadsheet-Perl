@@ -7,8 +7,9 @@ WriteMakefile(
     #'DIR'               => ['Perl'],
     'PREREQ_PM'		=>
     	{
-	Spreadsheet::ConvertAA => 0.01,
+	Spreadsheet::ConvertAA => 0.02,
         Data::TreeDumper       => 0.12,
+	Text::ASCIITable       => 0.12
 	},
 
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005

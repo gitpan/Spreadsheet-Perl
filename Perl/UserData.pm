@@ -42,7 +42,7 @@ return bless [@_], "Spreadsheet::Perl::UserData" ;
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::UserData- Let the user store private data in a cell
+Spreadsheet::Perl::UserData - Let the user store private data in a cell
 
 =head1 SYNOPSIS
 

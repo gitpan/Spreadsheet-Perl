@@ -1,7 +1,7 @@
 Spreadsheet::Perl
 =================
 
-Fix the name export problem
+#Fix the name export problem
 
 -a column/row stores default value for unset cells ?
 -spreadsheet (0,0) stores default value for unset cells ?
@@ -11,23 +11,34 @@ R1C1 reference in formulas => $ss{$cell - "1,1"}
 Insertion of rows and columns (=> formulas !!)
 Deletion of rows and columns (=> formulas !!)
 Sorting (=> formulas !!)
+	option to invalidate all formulas containing a ref to the deleted row ...
 
+
+Symbolic formulas => translator?
+Symbolic addressing? partly done through perl.
 
 DBI interface
+
+function to list the available spreadsheet functions and where they are comming from ?
 
 Clear(FORMULA, VALUE, FORMAT) ;
 Read/Write
 
+#Fetch and store sub should have symbolic names that can be used when debugging
+#DEBUG::INLINE_INFORMATION
+
 Composite initialisation type?
-dump to screen in cell form
 
 $ss->Formula( F1, F2, ...) ;
 $ss->{DEBUG}{FETCH} = sub
 
+#dump to screen in cell form
+#handle page width
+redraw the row header if multi page
+
 #dump to html table
 #Autofill example
 #RE-think AUTOCALC!
-
 #one naming function for range and cell (recursive within call)
 #DefineSpreadsheetFunction, remove object function
 #No cache at spreadsheet level

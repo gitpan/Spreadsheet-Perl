@@ -35,3 +35,14 @@ Revision history for Perl extension Spreadsheet::Perl.
 	CHANGED: documentation so do 'setup.pl' shows error handling.
 	ADDED: finished he first version of the documentation
 	
+0.05  Sat Jan  25 00:20:00 2004
+	ADDED: some interesting link in the documentation
+	ADDED: Table dump
+	ADDED: page width support
+	ADDED: {DEBUG}{INLINE_INFORMATION}
+	CHANGED: Fetch and Store subs must have a name
+	CHANGED: Ref must have a name
+	ADDED: possibility to name headers
+	ADDED: StoreOnFetch
+	ADDED: row header displayed for each page
+	Change: different page count footer

@@ -30,6 +30,9 @@ our $VERSION = '0.01' ;
 sub Ref
 {
 my $self = shift ;
+my $information = shift ;
+
+confess "First argument to 'Ref' should be a description" unless '' eq ref $information ;
 
 if(defined $self && __PACKAGE__ eq ref $self)
 	{
@@ -38,13 +41,14 @@ if(defined $self && __PACKAGE__ eq ref $self)
 	my %address_to_reference ;
 	my $spreadsheet_reference_sub = bless 
 						[
-						  # store sub
-						  sub
+						  $information
+						 
+						, sub # store sub
 						   {
 						   ${$address_to_reference{$_[1]}} = $_[2] ;
 						   }
-						  # fetch sub 
-						, sub
+						  
+						, sub # fetch sub 
 						   {
 						   ${$address_to_reference{$_[1]}}
 						   }
@@ -71,7 +75,8 @@ else
 			{
 			return bless 
 				[
-				  sub{$$reference = $_[2] ;} # store sub
+				  $information
+				, sub{$$reference = $_[2] ;} # store sub
 				, sub{$$reference} # fetch sub
 				], "Spreadsheet::Perl::Reference" ;
 			} ;
@@ -87,7 +92,7 @@ else
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Reference- Reference access for Spreadsheet::Perl
+Spreadsheet::Perl::Reference - Reference access for Spreadsheet::Perl
 
 =head1 SYNOPSIS
 

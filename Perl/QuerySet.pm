@@ -19,9 +19,9 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw( GetCellList GetLastIndexes  GetFormulaText DefineFunction ) ;
+#~ our @EXPORT = qw() ;
 our @EXPORT ;
-push @EXPORT, qw( GetCellList GetLastIndexesGetFormulaText DefineSpreadsheetFunction ) ;
+push @EXPORT, qw( DefineSpreadsheetFunction ) ;
 
 our $VERSION = '0.01' ;
 
@@ -128,9 +128,20 @@ return($name) ;
 
 sub GetCellList
 {
+# doesn't return headers cells
+
 my $self = shift ;
 
-return(SortCells(keys %{$self->{CELLS}})) ;
+return
+	(
+	SortCells
+		(
+		grep
+			{
+			! /^@/ && ! /[A-Z]0$/
+			} keys %{$self->{CELLS}}
+		)
+	) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -143,7 +154,7 @@ my ($last_letter, $last_number) = ('A', 1) ;
 
 for my $address(keys %{$self->{CELLS}})
 	{
-	my ($letter, $number) = $address =~ /([A-Z]+)(.+)/ ;
+	my ($letter, $number) = $address =~ /([A-Z@]+)(.+)/ ;
 	
 	($last_letter) = sort{length($b) <=> length($a) || $b cmp $a} ($last_letter, $letter) ;
 	$last_number   = $last_number > $number ? $last_number : $number ;
@@ -198,12 +209,96 @@ if(eval "*Spreadsheet::Perl::$name\{CODE}")
 
 #-------------------------------------------------------------------------------
 
+sub GetFormulaText
+{
+my $self = shift ;
+my $address = shift ;
+
+my $is_cell ;
+($address, $is_cell) = $self->CanonizeAddress($address) ;
+
+if($is_cell)
+	{
+	if(exists $self->{CELLS}{$address})
+		{
+		if(exists $self->{CELLS}{$address}{FORMULA})
+			{
+			return($self->{CELLS}{$address}{GENERATED_FORMULA}, $self->{CELLS}{$address}{FORMULA}[1]) ;
+			}
+		else
+			{
+			return ;
+			}
+		}
+	else
+		{
+		return ;
+		}
+	}
+else
+	{
+	confess "GetFormula can only return the formula for one cell not '$address'.\n" ;
+	}
+}
+
+#-------------------------------------------------------------------------------
+
+sub GetCellInfo
+{
+my $self = shift ;
+my $address = shift ;
+
+my $is_cell ;
+($address, $is_cell) = $self->CanonizeAddress($address) ;
+
+if($is_cell)
+	{
+	if(exists $self->{CELLS}{$address})
+		{
+		my $cell_info = '' ;
+		
+		# cache ?
+		# lock ?
+		
+		if(exists $self->{CELLS}{$address}{STORE_SUB_INFO})
+			{
+			$cell_info .= "StoreSub: '$self->{CELLS}{$address}{STORE_SUB_INFO}'\n" ;
+			}
+			
+		if(exists $self->{CELLS}{$address}{FORMULA})
+			{
+			# defintion line?
+			
+			$cell_info .= $self->{CELLS}{$address}{FORMULA}[1] . " =>\n" 
+					. $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
+			}
+			
+		if(exists $self->{CELLS}{$address}{FETCH_SUB_INFO})
+			{
+			$cell_info .= "FetchSub: '$self->{CELLS}{$address}{FETCH_SUB_INFO}'.\n" ;
+			}
+		
+		return($cell_info) ;
+		}
+	else
+		{
+		return("Virtual cell\n") ;
+		}
+	}
+else
+	{
+	confess "GetCellInfo can only return information about one cell not '$address'.\n" ;
+	}
+}
+
+#-------------------------------------------------------------------------------
+
 1 ;
 
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::QuerySet- Functions at the spreadsheet level
+Spreadsheet::Perl::QuerySet - Functions at the spreadsheet level
 
 =head1 SYNOPSIS
 

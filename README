@@ -1,4 +1,4 @@
-Spreadsheet/Perl version 0.04
+Spreadsheet/Perl version 0.05
 =============================
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet engine.
@@ -7,31 +7,22 @@ Please look at the man page for more information or the online documentation @ h
 
 In this release:
 
-	CHANGED: rewrote Address.pm
-	CHANGED: replaced SetCellNAme and SetRangeName by SetNames
-	CHANGED: Renamed Formula to PerlFormula
-
-	ADDED: finished the first draft of the documentation
-	ADDED: almost all functions ready to take a canonized name with spreadsheet
-	ADDED: '*' adressing but wait till I understand the semantic better to turn it on
-	ADDED: NoCache available for whole spreadsheet
-	ADDED: Ref (scalar mapping)
-	ADDED: spreadsheet REF, takes multiple cells use a single sub
-	ADDED: finished he first version of the documentation
-	ADDED: HTML output
-	ADDED: perl warning are displayed with spreadsheet context when in formula is run
-
-	FIXED: AUTOCALC
-	FIXED: error in formula address handling
-	FIXED: Missed a pop in the dependency stack
-	FIXED: CanonizeAddress does a real canonization
-
+	ADDED: some interesting link in the documentation
+	ADDED: Table dump thanks to Håkon Nessjøen
+	ADDED: page width support
+	ADDED: {DEBUG}{INLINE_INFORMATION}
+	CHANGED: Fetch and Store subs must have a name
+	CHANGED: Ref must have a name
+	ADDED: possibility to name headers
+	ADDED: StoreOnFetch
+	ADDED: row header displayed for each page
+	Change: different page count footer
 
 TODO
 
-There is still lots to do (the basics are there) but I have
+There is still lots to do but the basics are there.
 
-Please help this project.
+Please Contribute to this project.
 
 BUGS
 
@@ -52,11 +43,13 @@ This module requires these other modules and libraries:
 
 Spreadsheet::ConvertAA.
 
-Data::TreeDumper is used if found (I recommend installing it to get nice dumps).
+Data::TreeDumper
 
 Devel::Size
 
 Data::Table for html output (interim solution)
+
+Text::ASCIITable
 
 COPYRIGHT AND LICENCE
 

@@ -21,11 +21,11 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
 #~ our @EXPORT = qw( SetRangeName SetCellName SortCells) ;
 our @EXPORT ;
-push @EXPORT, qw( SetName SortCells ConvertAdressToNumeric) ;
+push @EXPORT, qw( SortCells ConvertAdressToNumeric) ;
 
 our $VERSION = '0.02' ;
 
-use Spreadsheet::ConvertAA ;
+use Spreadsheet::ConvertAA 0.02 ;
 
 #-------------------------------------------------------------------------------
 
@@ -152,7 +152,7 @@ if(defined $cell_address)
 	}
 else
 	{
-	if($address =~ /^[A-Z]+[0-9\*]+$/ || $address =~ /^\*[0-9\*]+$/ || $address =~ /^[A-Z]+\*$/ || $address =~ /^\*$/)
+	if($address =~ /^[A-Z@]+[0-9\*]+$/ || $address =~ /^\*[0-9\*]+$/ || $address =~ /^[A-Z@]+\*$/ || $address =~ /^\*$/)
 		{
 		return($spreadsheet . $address) ;
 		}
@@ -179,8 +179,8 @@ return
 	(
 	sort
 		{
-		my ($a_spreadsheet_name, $a_letter, $a_number) = $a =~ /^([A-Z]+!)?([A-Z]+)(.+)$/ ;
-		my ($b_spreadsheet_name, $b_letter, $b_number) = $b =~ /^([A-Z]+!)?([A-Z]+)(.+)$/ ;
+		my ($a_spreadsheet_name, $a_letter, $a_number) = $a =~ /^([A-Z]+!)?([A-Z@]+)(.+)$/ ;
+		my ($b_spreadsheet_name, $b_letter, $b_number) = $b =~ /^([A-Z]+!)?([A-Z@]+)(.+)$/ ;
 		
 		$a_spreadsheet_name ||= '' ;
 		$b_spreadsheet_name ||= '' ;
@@ -232,7 +232,7 @@ if($address =~ /^([A-Z_]+!)(.+)/)
 	$address = $2 ;
 	}
 
-if($address =~ /^([A-Z]+)([0-9]+)$/)
+if($address =~ /^([A-Z@]+)([0-9]+)$/)
 	{
 	my $letters = $1 ;
 	my $figure = $2 ;
@@ -278,7 +278,7 @@ for my $address (@addresses_definition)
 	
 	for($start_cell)
 		{
-		/^([A-Z]+)\*$/ && do
+		/^([A-Z@]+)\*$/ && do
 			{
 			$start_cell = "${1}1" ;
 			last;
@@ -299,7 +299,7 @@ for my $address (@addresses_definition)
 		
 	for($end_cell)
 		{
-		/([A-Z]+)\*/ && do
+		/([A-Z@]+)\*/ && do
 			{
 			#~ $end_cell= "${1}10" ;
 			$end_cell= "${1}1" ;
@@ -425,13 +425,13 @@ if($address =~ /^([A-Z_]+!)(.+)/)
 	$address = $2 ;
 	}
 
-if($address =~ /(\[?[A-Z]+\]?\[?[0-9]+\]?):(\[?[A-Z]+\]?\[?[0-9]+\]?)/)
+if($address =~ /(\[?[A-Z@]+\]?\[?[0-9]+\]?):(\[?[A-Z@]+\]?\[?[0-9]+\]?)/)
 	{
 	($is_cell, $start_cell, $end_cell) = (0, $1, $2) ;
 	}
 else	
 	{
-	if($address =~ /(\[?[A-Z]+\]?\[?[0-9]+\]?)/)
+	if($address =~ /(\[?[A-Z@]+\]?\[?[0-9]+\]?)/)
 		{
 		($is_cell, $start_cell, $end_cell) = (1, $1, $1) ;
 		}
@@ -491,7 +491,7 @@ if($cell_address=~ /^([A-Z_]+!)(.+)/)
 	}
 
 #~ print "OffsetCellAddress : $spreadsheet$cell_address\n" ;
-my ($full_column, $column, $full_row, $row) = $cell_address=~ /^(\[?([A-Z]+)\]?)(\[?([0-9]+)\]?)$/ ;
+my ($full_column, $column, $full_row, $row) = $cell_address=~ /^(\[?([A-Z@]+)\]?)(\[?([0-9]+)\]?)$/ ;
 
 my $column_index = FromAA($column) ;
 $column_index += $column_offset if($full_column !~ /[\[\]]/) ;
@@ -532,8 +532,8 @@ if($cell_address2 =~ /^([A-Z_]+!)(.+)/)
 
 confess "Can't compute offset of cells on different spreadsheets\n" if $spreadsheet1 ne $spreadsheet2 ;
 
-my ($column1, $row1) = $cell_address1 =~ /^([a-zA-Z]+)([0-9]+)/ ;
-my ($column2, $row2) = $cell_address2 =~ /^([a-zA-Z]+)([0-9]+)/ ;
+my ($column1, $row1) = $cell_address1 =~ /^([a-zA-Z@]+)([0-9]+)/ ;
+my ($column2, $row2) = $cell_address2 =~ /^([a-zA-Z@]+)([0-9]+)/ ;
 
 #~ print "$cell_address1  => $column1, $row1. $cell_address2  => $column2, $row2.\n" ;
 

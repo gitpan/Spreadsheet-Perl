@@ -46,7 +46,7 @@ return bless {@_}, "Spreadsheet::Perl::Format" ;
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Format- Format support for Spreadsheet::Perl
+Spreadsheet::Perl::Format - Format support for Spreadsheet::Perl
 
 =head1 SYNOPSIS
 

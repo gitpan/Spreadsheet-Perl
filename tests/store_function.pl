@@ -8,8 +8,8 @@ use Spreadsheet::Perl ;
 tie my %ss, "Spreadsheet::Perl" ;
 my $ss = tied %ss ;
 
-$ss{'A1:A5'} = StoreFunction(\&StorePlus, 5) ;
-$ss{'A6:A10'} = StoreFunction(\&StorePlus, 10) ;
+$ss{'A1:A5'} = StoreFunction('', \&StorePlus, 5) ;
+$ss{'A6:A10'} = StoreFunction('', \&StorePlus, 10) ;
 $ss{'A1:A10'} =  5 ;
 
 for($ss->GetCellList(), 'A11')

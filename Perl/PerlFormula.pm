@@ -99,42 +99,12 @@ return
 
 #-------------------------------------------------------------------------------
 
-sub GetFormulaText
-{
-my $self = shift ;
-my $address = shift ;
-
-my $is_cell ;
-($address, $is_cell) = $self->CanonizeAddress($address) ;
-
-if($is_cell)
-	{
-	if(exists $self->{CELLS}{$address} && exists $self->{CELLS}{$address}{FORMULA})
-		{
-		return($self->{CELLS}{$address}{GENERATED_FORMULA}, $self->{CELLS}{$address}{FORMULA}[0]) ;
-		}
-	else
-		{
-		return ;
-		}
-	}
-else
-	{
-	my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-	print $dh "GetFormula can only return the formula for one cell not '$address'.\n" ;
-	
-	return ;
-	}
-}
-
-#-------------------------------------------------------------------------------
-
 1 ;
 
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::PerlFormula- Perl Formula support for Spreadsheet::Perl
+Spreadsheet::Perl::PerlFormula - Perl Formula support for Spreadsheet::Perl
 
 =head1 SYNOPSIS
 

@@ -33,4 +33,5 @@ $ss{C1} = 'ho' ; # not locked
 $ss->SetNames("TEST_RANGE", 'A1:B5') ;
 $ss{TEST_RANGE} = '7' ;
 
-print $ss->Dump() ;
+$ss->{DEBUG}{INLINE_INFORMATION}++ ;
+print $ss->DumpTable() ;

@@ -123,5 +123,6 @@ print  $ss{A1} . ' ' . $ss{A2} . "\n" ;
 
 print $ss->Dump() ;
 $ss->GenerateHtmlToFile('setup_do.html') ;
+print $ss->DumpTable() ;
 
 #---------------------------------------------------------------------------------

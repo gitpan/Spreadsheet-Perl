@@ -13,7 +13,7 @@ my $variable = 25 ;
 my $struct = {something => 'hello world'} ;
 
 # test 1
-#~ $ss{A1} = Ref(\$variable) ;
+#~ $ss{A1} = Ref('', \$variable) ;
 #~ $ss{A2} = PerlFormula('$ss{A1}') ;
 
 #~ print "$ss{A1} $ss{A2}\n" ;
@@ -23,7 +23,7 @@ my $struct = {something => 'hello world'} ;
 #~ print "\$variable = $variable\n" ;
 
 # test 2
-#~ $ss{A1} = Ref(\($struct->{something})) ;
+#~ $ss{A1} = Ref('', \($struct->{something})) ;
 
 #~ print $ss->Dump() ;
 #~ print "$ss{A1} $ss{A1}\n" ;
@@ -37,7 +37,7 @@ my $struct = {something => 'hello world'} ;
 #~ print $ss->Dump() ;
 
 # test 3
-#~ $ss{A1} = Ref(\($struct->{something})) ;
+#~ $ss{A1} = Ref('', \($struct->{something})) ;
 
 #~ print "$ss{A1}\n" ;
 #~ print $ss->Dump() ;
@@ -45,7 +45,8 @@ my $struct = {something => 'hello world'} ;
 # test 4
 $ss->Ref
 	(
-	  A1 => \($struct->{something})
+	  'Testing Ref for more than one value'
+	, A1 => \($struct->{something})
 	, A2 => \$variable
 	, 'A3:A5' => \$variable
 	) ;

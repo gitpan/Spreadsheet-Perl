@@ -22,6 +22,15 @@ print $ss->Dump() ;
 
 @ss{'A1:A5'} = 'data' x 10 ;
 print $ss->Dump(undef, 0, {DISPLAY_PERL_SIZE => 1}) ;
+print $ss->DumpTable
+		(
+		  undef
+		, undef 
+		, {
+		    alignHeadRow => 'center',
+		  , headingText  => 'Some Title'
+		  }
+		) ;
 
 #~ print $ss->Dump(undef, 0, {DISPLAY_PERL_SIZE => 1, DISPLAY_PERL_ADDRESS => 10}) ;
 #~ use Devel::Size::Report qw/report_size/;

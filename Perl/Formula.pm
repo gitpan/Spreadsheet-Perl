@@ -44,7 +44,7 @@ return(PerlFormula($perl_code)) ;
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Formula- Formula support for Spreadsheet::Perl
+Spreadsheet::Perl::Formula - Formula support for Spreadsheet::Perl
 
 =head1 SYNOPSIS
 

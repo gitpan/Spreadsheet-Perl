@@ -12,8 +12,8 @@ my $ss = tied %ss ;
 %ss = 
 	(
 	  A1 => 1
-	, A2 => FetchFunction(sub{1})
-	, A3 => PerlFormula('$ss->Sum("A1:A2")') 
+	, A2 => FetchFunction('always 1', sub{1})
+	, A3 => PerlFormula('', '$ss->Sum("A1:A2")') 
 	
 	, B1 => 3
 	, c2 => "hi there"

@@ -12,8 +12,10 @@ my $ss = tied %ss ;
 
 my $week_days = [qw(dimanche lundi mardi mercredi jeudi vendredi samedi)] ;
 
-$ss{'A1:F3'} = RangeValuesSub(\&WeekDayFiller, $week_days, 'mardi') ;
+$ss{'A1:F1'} = RangeValuesSub(\&WeekDayFiller, $week_days, 'mardi') ;
+$ss{'A1:A8'} = RangeValuesSub(\&WeekDayFiller, $week_days, 'mardi') ;
 print $ss->Dump() ;
+print $ss->GenerateASCIITable() ;
 
 
 #-------------------------------------------------------------

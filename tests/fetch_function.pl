@@ -10,7 +10,7 @@ my $ss = tied %ss ;
 
 $ss{'A1:A8'} = 10 ;
 
-$ss{A9} = FetchFunction(\&SumRowsAbove) ;
+$ss{A9} = FetchFunction('sum rows above this one', \&SumRowsAbove) ;
 print "'A9' SumRowsAbove: " . $ss{A9} . "\n" ;
 
 #-------------------------------------------------------------------------------
@@ -36,9 +36,14 @@ return($sum) ;
 
 # dependency OK
 %ss = () ;
-$ss{A1} = FetchFunction(sub{return($_[0]->Get('A2') ) ;}) ; # sub is passed $self && $cell_address
+$ss{A1} = FetchFunction('test', sub{return($_[0]->Get('A2') ) ;}) ; # sub is passed $self && $cell_address
 $ss{A2} = 'hi' ;
 print $ss{A1} . "\n" ;
 $ss{A2} = 'there' ;
 print $ss{A1} . "\n" ;
+
+print $ss->DumpTable() ;
+
+$ss->{DEBUG}{INLINE_INFORMATION}++ ;
+print $ss->DumpTable() ;
 

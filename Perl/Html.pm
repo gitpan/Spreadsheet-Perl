@@ -30,12 +30,12 @@ our $VERSION = '0.01' ;
 sub GenerateHtml
 {
 eval "use Data::Table ;" ;
-
 confess "Data::Table is not installed" if($@) ;
 
 my $ss = shift ;
-my ($last_letter, $last_number) = $ss->GetLastIndexes() ;
-my ($cols, $rows) = (FromAA($last_letter), $last_number) ;
+
+my ($last_letter, $rows) = $ss->GetLastIndexes() ;
+my $cols = FromAA($last_letter) ;
 
 my $data = 
 	[
@@ -45,25 +45,30 @@ my $data =
 		map{''} (1 ..$cols + 1)
 		]
 		} (1 .. $rows)
-	
 	] ;
 
-my $table1 = new Data::Table($data, [ map{ToAA($_)} (0, 1 .. $cols)]) ;
+my $table1 = new Data::Table($data, [ map{$ss->Get("$_,0")} (0, 1 .. $cols)]) ;
 
 for (1 .. $rows)
 	{
-	$table1->setElm($_ - 1, 0, $_) ;
+	$table1->setElm($_ - 1, 0, $ss->Get("0,$_")) ;
 	}
 	
 for ($ss->GetCellList())
 	{
 	my ($cellcol, $cellrow) =  ConvertAdressToNumeric($_) ;
 	
-	$table1->setElm ($cellrow - 1, $cellcol, $ss->Get($_)) ;
+	my $cell_info = '' ;
+	
+	if(exists $ss->{DEBUG}{INLINE_INFORMATION})
+		{
+		$cell_info = $ss->GetCellInfo($_) ;
+		}
+		
+	$table1->setElm ($cellrow - 1, $cellcol, $cell_info . $ss->Get($_)) ;
 	}
 
 return($table1->html()) ;
-
 }
 
 sub GenerateHtmlToFile
@@ -83,7 +88,7 @@ close HTML_FILE
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Html- HTML output for Spreadsheet::Perl
+Spreadsheet::Perl::Html - HTML output for Spreadsheet::Perl
 
 =head1 SYNOPSIS
 
