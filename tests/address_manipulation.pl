@@ -38,3 +38,10 @@ for
 	print '' . (join(", ", @$_)) . " => " . $offset_cell . " offset: " . $offset_string  . "\n" ;
 	}
 
+# debug print out the adresses
+$ss->{DEBUG}{ADDRESS_LIST}++ ;
+$ss{'A1:B2'} = 1 ;
+$ss{'B2:A1'} = 1 ;
+$ss{'A4:B2'} = 1 ;
+$ss{'B4:A2'} = 1 ;
+

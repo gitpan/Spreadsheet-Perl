@@ -34,7 +34,6 @@ $juliette->AddSpreadsheet('ROMEO', $romeo) ;
 
 $romeo{'B1:B5'} = 10 ;
 
-#~ $romeo{'JULIETTE!A4'} = 5 ; # <=> $juliette{A4}  = 5
 $juliette{A4} = 5 ;
 $juliette{A5} = Formula('$ss->Sum("ROMEO!B1:B5") + $ss{"ROMEO!B2"}') ; 
 

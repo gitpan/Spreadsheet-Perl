@@ -40,6 +40,11 @@ for my $address (@addresses)
 		{
 		my $cell_value = $ss->Get($current_address) ;
 		
+		#~ if(exists $ss->{DEBUG_MODULE}{ARITHMETIC_SUM})
+			#~ {
+			#~ print "Sum: $current_address => $cell_value\n" ;
+			#~ }
+		
 		$sum += $cell_value if (defined $cell_value &&  scalar($cell_value) == $cell_value) ; 
 		}
 	

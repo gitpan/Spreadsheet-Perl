@@ -12,6 +12,12 @@ my $ss = tied %ss ;
 $ss->SetCellName("First", "1,1") ;
 print  $ss{First} . ' ' . $ss{A2} . "\n" ;
 
+$ss->SetCellName("first", "A1") ;
+print  $ss{first} . ' ' . $ss{A2} . "\n" ;
+
+$ss->SetRangeName("first_range", "A1:A2") ;
+print  "First range: @{$ss{first_range}}\n" ;
+
 $ss->Lock(1) ;
 $ss{A1} = 'ho' ;
 $ss->Lock(0) ;

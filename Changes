@@ -11,3 +11,9 @@ Revision history for Perl extension Spreadsheet::Perl.
 	ADDED: tests and examples
 	
 
+0.03  Mon Jan  12 23:00:00 2004
+	FIXED: Reset croaked if no data was given
+	FIXED: Cleaned up the tests
+	ADDED: worked on the documentation
+	
+	

@@ -11,6 +11,9 @@ use Spreadsheet::Perl::Arithmetic ;
 tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
 my $ss = tied %ss ;
 
+%ss = do "ss_setup.pl" ;
+print $ss->Dump(undef, 0, {USE_ASCII => 1}) ;
+
 $ss->{DEBUG}{AUTOCALC}++ ; # show autocalc state every time a value is fetched
 $ss->{DEBUG}{SUB}++ ; # show whenever a value has to be calculated
 $ss->{DEBUG}{FETCHED}++ ; # counts how many times the cell is fetched

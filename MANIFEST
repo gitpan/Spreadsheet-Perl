@@ -19,24 +19,24 @@ Perl/RangeValues.pm
 Perl/UserData.pm
 Perl/Validator.pm
 
+tests/address_manipulation.pl
 tests/attributes.pl
+tests/cache.pl
 tests/create_setup.pl
 tests/cyclic_error.pl
 tests/debug.pl
 tests/fetch_function.pl
 tests/format.pl
 tests/formula.pl
+tests/formula_relocating.pl
 tests/function_definition.pl
 tests/inter_spreadsheet.pl
 tests/name_and_lock.pl
-tests/offset.pl
 tests/query_set.pl
 tests/range_values.pl
 tests/sort.pl
 tests/ss_setup.pl
 tests/store_function.pl
-tests/test2.pl
-tests/test5.pl
 tests/tie.pl
 tests/triggers.pl
 tests/user_data.pl

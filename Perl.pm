@@ -23,7 +23,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( Reset ) ;
 
-our $VERSION = '0.02' ;
+our $VERSION = '0.03' ;
 
 use Spreadsheet::Perl::Address ;
 use Spreadsheet::Perl::Cache ;
@@ -66,8 +66,17 @@ my $self = shift ;
 my $setup = shift ;
 my $cell_data  = shift ;
 
-confess "Setup data must be a hash reference!" unless 'HASH' eq ref $setup ;
-%$self = (GetDefaultData(), %$setup) ;
+if(defined $setup)
+	{
+	if('HASH' eq ref $setup)
+		{
+		confess "Setup data must be a hash reference!" 
+		}
+	else
+		{
+		%$self = (GetDefaultData(), %$setup) ;
+		}
+	}
 	
 if(defined $cell_data)
 	{
@@ -789,7 +798,7 @@ Spreadsheet::Perl - Pure Perl implementation of a spreadsheet
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet. 
 
-Spreadsheet::Perl is minimal in size and can do the the folowwing:
+Spreadsheet::Perl is minimal in size but can do the the folowwing:
 
 =over 2
 
@@ -841,13 +850,11 @@ Spreadsheet::Perl is minimal in size and can do the the folowwing:
 
 =item * slice access
 
-=item * minimal size
-
 =item * some debugging tool (dump, formula stack trace, ...)
 
+=back
 
 Look at the 'tests' directory for some examples.
-
 
 =head1 DRIVING FORCE
 
@@ -900,11 +907,199 @@ I want B<Spreadsheets::Perl> to:
 
 =head1 CREATING A SPREADSHEET
 
+Spreadsheet perl is implemented as a tie. Remember that you can use hash slices (I 'll give some examples). The
+spreadsheet functions are accessed through the tied object.
+
+=head2 Simple creation
+
+  use Spreadsheet::Perl ;
+  tie my %ss, "Spreadsheet::Perl" ; 
+  my $ss = tied %ss ; # needed to access the spreadsheet functions.
+
 =head2 Setting up data
+
+=head3 Setting the cell data
+
+  use Spreadsheet::Perl ;
+  tie my %ss, "Spreadsheet::Perl"
+		, CELLS =>
+				{
+				  A1 =>
+						{
+						VALUE => 'hi'
+						}
+					
+				, A2 =>
+						{
+						VALUE => 'there'
+						#~ or
+						#~ FORMULA => '$ss{A1}'
+						}
+				} ;
+
+
+=head3 Setting the cell data, simple way
+
+  use Spreadsheet::Perl ;
+  tie my %ss, "Spreadsheet::Perl"
+  @ss{'A1', 'B1:C2', 'A8'} = ('A', 'B', 'C');
+
+=head3 Setting the spreadsheet attributes
+
+  use Spreadsheet::Perl ;
+  tie my %ss, "Spreadsheet::Perl"
+		  , NAME => 'TEST'
+		  , AUTOCALC => 0
+		  , DEBUG => { PRINT_FORMULA => 1} ;
+
 
 =head2 reading data from a file
 
+  <- start  of ss_setup.pl ->
+  # how to compute the data
+  
+  sub OneMillion
+  {
+  return(1_000_000) ;
+  }
+  
+  #-----------------------------------------------------------------
+  # the spreadsheet data
+  #-----------------------------------------------------------------
+  A1 => 120, 
+  A2 => sub{1},
+  A3 => Formula('$ss->Sum("A1:A2")'),
+  
+  B1 => 3,
+  
+  c2 => "hi there",
+  
+  D1 => OneMillion()
+  
+  <- end of ss_setup.pl ->
+
+  use Spreadsheet::Perl ;
+  tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
+  %ss = do "ss_setup.pl" ;
+
 =head2 dumping a spreadsheet
+
+Use the Dump function (see I<Debugging>):
+
+  my $ss = tied %ss ;
+  print $ss->Dump() ;
+
+Generates:
+  
+  ------------------------------------------------------------
+  Spreadsheet::Perl=HASH(0x825540c) 'TEST' [3550 bytes]
+  
+  
+  Cells:
+  |- A1
+  |  `- VALUE = 120
+  |- A2
+  |  `- VALUE = CODE(0x82554d8)
+  |- A3
+  |  |- ANCHOR = A3
+  |  |- FETCH_SUB = CODE(0x825702c)
+  |  |- FETCH_SUB_ARGS
+  |  |- FORMULA = Object of type 'Spreadsheet::Perl::Formula'
+  |  |  `- 0 = $ss->Sum("A1:A2")
+  |  |- GENERATED_FORMULA = $ss->Sum("A1:A2")
+  |  `- NEED_UPDATE = 1
+  |- B1
+  |  `- VALUE = 3
+  |- C2
+  |  `- VALUE = hi there
+  `- D1
+     `- VALUE = 1000000
+  
+  Spreadsheet::Perl=HASH(0x825540c) 'TEST' dump end
+  ------------------------------------------------------------
+
+=head1 CELL and RANGE: ADDRESSING, NAMING
+
+Cells are index  with a scheme I call baseAA1 (please let me know if it has a better name).
+The cel address is a combinaison of letters and a figure, ie 'A1', 'BB45', 'ABDE15'.
+
+BaseAA figures match /[A-Z]{1,4}/. see B<Spreadsheet::ConvertAA>. There is no limit on the numeric figure.
+Spreadsheet::Perl is implemented as a hash thus allowing for sparse spreadsheets.
+
+=head2 Address format
+
+Adresses are composed of:
+
+=over 2
+
+=item * an optional spreadsheet name and '!'. ex: 'TEST!'
+
+=item * a baseAA1 figure. ex 'A1'
+
+=item * a ':' followed by a baseAA1 figure for ranges. ex: ':A5'
+
+=back
+
+The following are valid addresses: A1 TEST!A1 A1:BB5 TESTA5:CE43
+
+the order of the baseAA figures is important!
+
+  $ss{'A1:D5'} = 7; is equivalent to $ss{'D5:A1'} = 7; 
+
+but
+
+  $ss{'A1:D5'} = Formula('$ss{H10}'); is NOT equivalent to $ss{'D5:A1'} = Formula('$ss{H10}'); 
+  
+because formulas get recalculated for each cell. Spreadsheet::Perl goes from the first baseAA figure
+to the second one by iterating the row, then the column.
+
+it is also possible to index cells with numerals only: $ss{"1,7"}. Remember that A is 1 and there are
+no zeros.
+
+=head2 Names
+It is possible to give a name to a cell or to a range: 
+
+  tie my %ss, "Spreadsheet::Perl" ;
+  my $ss = tied %ss ;
+  @ss{'A1', 'A2'} = ('cell A1', 'cell A2') ;
+  
+  $ss->SetCellName("first", "A1") ;
+  print  $ss{first} . ' ' . $ss{A2} . "\n" ;
+  
+  $ss->SetRangeName("first_range", "A1:A2") ;
+  print  "First range: @{$ss{first_range}}\n" ;
+
+=head1 OTHER SPREADSHEET
+
+To use interspreadsheet formulas, you need to make the spreadsheet aware of the other spreadsheets by
+calling the I<AddSpreadsheet> function.
+
+  tie my %romeo, "Spreadsheet::Perl", NAME => 'ROMEO' ;
+  my $romeo = tied %romeo ;
+
+  tie my %juliette, "Spreadsheet::Perl", NAME => 'JULIETTE' ;
+  my $juliette = tied %juliette ;
+
+  $romeo->AddSpreadsheet('JULIETTE', $juliette) ;
+  $juliette->AddSpreadsheet('ROMEO', $romeo) ;
+  
+  $romeo{'B1:B5'} = 10 ;
+  
+  $juliette{A4} = 5 ;
+  $juliette{A5} = Formula('$ss->Sum("JULIETTE!A4") + $ss->Sum("ROMEO!B1:B2")') ; 
+
+=head1 SPREADSHEEET Functions
+
+=head2 Locking
+
+=head2 Calculation control
+
+=head2 State queries and debugging
+
+=head1 SETTING CELLS
+
+Setting and reading cells is done in two diffrent ways. I like the way it looks now but it
+might change in the (near) future.
 
 =head2 Formulas
 
@@ -913,26 +1108,6 @@ I want B<Spreadsheets::Perl> to:
 =head3 cell dependencies
 
 =head3 circular dependencies
-
-=head1 CELL and RANGE: ADDRESSING, NAMING
-
-=head2 Address format
-
-=head2 Slices
-
-=head2 Names
-
-=head1 OTHER SPREADSHEET
-
-=head1 SPREADSHEEET Functions
-
-=head2 Locking
-
-=head2 Calculation control
-
-=head2 State queries
-
-=head1 SETTING CELLS
 
 =head2 Setting a value
 
@@ -960,12 +1135,32 @@ I want B<Spreadsheets::Perl> to:
 
 =head1 Debugging
 
+=head2 Dump
+
+The I<Dump> function, err, dumps the spreadsheet. It takes the following arguments:
+
+=over 2
+
+=item * an address list withing an array reference or undef. ex: ['A1', 'B5:B8']
+
+=item * a boolean. When set, the spreadsheet attributes are displayed
+
+=item * an optional hash reference pased as overrides to B<Data::TreeDumper>
+
+=back
+
+If B<Data::TreeDumper> is not installed, Data::Dumper is used.I exclusively use B<Data::TreeDumper> so 
+I never look at the dumps generated through Data::Dumper. It will certainly look ugly or might even be broken.
+Install B<Data::TreeDumper>, it's worth it (I've written it so I have to force you to try it :-)
+
 =head1 TODO
 
 Unfortunately there is still a lot to do (the basics are there) and I have the feeling I will not get the time needed.
 If someone is willing to help or take over, I'll be glad to step aside.
 
 Here are some of the things that I find missing, this doesn't mean all are good ideas:
+
+=over 2
 
 =item * documentation, test (working on it)
 
@@ -1003,7 +1198,9 @@ Here are some of the things that I find missing, this doesn't mean all are good 
 
 =item * a nice logo :-)
 
-Some stuff is available on CPAN, just some glue is needed.
+=back
+
+Lots is available on CPAN, just some glue is needed.
 
 =head1 AUTHOR
 

@@ -33,3 +33,12 @@ for my $current_y (1 .. ($y - 1))
 	
 return($sum) ;
 }
+
+# dependency OK
+%ss = () ;
+$ss{A1} = FetchFunction(sub{return($ss->Get('A2') ) ;}) ;
+$ss{A2} = 'hi' ;
+print $ss{A1} . "\n" ;
+$ss{A2} = 'there' ;
+print $ss{A1} . "\n" ;
+

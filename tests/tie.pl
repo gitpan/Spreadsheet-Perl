@@ -39,3 +39,26 @@ print "keys:" . join(', ', keys %ss) . "\n" ;
 
 @ss{'A1', 'B1:C2', 'A8'} = ('A', 'B', 'C');
 print $ss->Dump() ;
+
+~ # range fetching
+#~ print $ss->Dump(undef, 1) ;
+#~ $ss->{DEBUG}{FETCH}++ ;
+#~ $ss->{DEBUG}{ADDRESS_LIST}++ ;
+
+#~ # data is encapsulated in an array as Fetch forces scalar context
+#~ my $array_with_values =$ss{'A1:A3'} ;
+#~ my ($a, $b, $c) = @$array_with_values ;
+#~ print "$a, $b, $c \n" ;
+
+#~ #slice access
+#~ $ss->{DEBUG}{FETCH}++ ;
+#~ print Dumper(@ss{'C1:C2', 'A1:A3'}) . "\n" ; 
+#~ print $ss->Dump(undef, 1) ;
+
+#~ #slice access
+#~ $ss->{DEBUG}{STORE}++ ;
+#~ @ss{'C1:C2', 'A1:A3'} = (5, 10) ;
+#~ print $ss->Dump(undef, 1) ;
+
+#~ @ss{$ss->GetAddressList('A1:A3')} = (1 .. 3) ;
+#~ print $ss->Dump(undef, 1) ;

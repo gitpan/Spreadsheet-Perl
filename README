@@ -3,19 +3,16 @@ Spreadsheet/Perl version 0.02
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet.
 
-Please look at the man page for more information
+Please look at the man page for more information.
 
 In this release:
 
 New:
-- Store calls back
-- more examples
-- attribute (read) access through the tied hash
-- started to work on the documentation
+- cleaned up all the tests
+- Done a third of the documentation
 
 Changes/Fixes:
-- podified the pod
-- sub name importing thanks to Yitzchak Scott-Thoenne (though we don't agree on the strategy yet)
+- Reset croaked if  not given data
 
 TODO
 
