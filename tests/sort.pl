@@ -3,7 +3,7 @@ use Carp ;
 use strict ;
 use warnings ;
 
-use Spreadsheet::Perl ; # tie
+use Spreadsheet::Perl ;
 
 tie my %ss, "Spreadsheet::Perl" ;
 my $ss = tied %ss ;

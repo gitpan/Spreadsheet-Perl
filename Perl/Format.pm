@@ -19,7 +19,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( Format AddFormat ) ;
+#~ our @EXPORT = qw( Format AddFormat ) ;
+our @EXPORT ;
+push @EXPORT, qw( Format AddFormat ) ;
+
 our $VERSION = '0.01' ;
 
 #-------------------------------------------------------------------------------
@@ -28,14 +31,12 @@ sub Format
 {
 # should be passed the elements needed to setup a hash
 
-return bless [@_], "Spreadsheet::Perl::Format::Set" ;
-}
+if(@_ % 2)
+	{
+	confess "Format should be passed a list of key/values!" ;
+	}
 
-sub AddFormat
-{
-# should be passed the elements needed to setup a hash
-
-return bless [@_], "Spreadsheet::Perl::Format::Add" ;
+return bless {@_}, "Spreadsheet::Perl::Format" ;
 }
 
 #-------------------------------------------------------------------------------

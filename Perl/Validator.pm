@@ -21,7 +21,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( Validator AddValidator ) ;
+#~ our @EXPORT = qw( Validator AddValidator ) ;
+our @EXPORT ;
+push @EXPORT, qw( Validator AddValidator ) ;
+
 our $VERSION = '0.01' ;
 
 #-------------------------------------------------------------------------------

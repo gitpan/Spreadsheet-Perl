@@ -19,16 +19,22 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( Reset ) ;
-our $VERSION = '0.01' ;
+#~ our @EXPORT = qw( Reset ) ;
+our @EXPORT ;
+push @EXPORT, qw( Reset ) ;
+
+our $VERSION = '0.02' ;
 
 use Spreadsheet::Perl::Address ;
-use Spreadsheet::Perl::Function ;
-use Spreadsheet::Perl::Formula ;
-use Spreadsheet::Perl::Validator ;
-use Spreadsheet::Perl::Lock ;
+use Spreadsheet::Perl::Cache ;
 use Spreadsheet::Perl::Devel ;
+use Spreadsheet::Perl::Format ;
+use Spreadsheet::Perl::Formula ;
+use Spreadsheet::Perl::Function ;
+use Spreadsheet::Perl::Lock ;
 use Spreadsheet::Perl::QuerySet ;
+use Spreadsheet::Perl::RangeValues ;
+use Spreadsheet::Perl::UserData ;
 use Spreadsheet::Perl::Validator ;
 
 #-------------------------------------------------------------------------------
@@ -50,24 +56,27 @@ return
 				, NEED_UPDATE => "#need update"
 				}
 				
-	, DATA                => {}
+	, CELLS                => {}
 	) ;
 }
 
 sub Reset
 {
 my $self = shift ;
-my $data = shift ;
+my $setup = shift ;
+my $cell_data  = shift ;
 
-%$self = GetDefaultData() ;
+confess "Setup data must be a hash reference!" unless 'HASH' eq ref $setup ;
+%$self = (GetDefaultData(), %$setup) ;
 	
-if(defined $data)
+if(defined $cell_data)
 	{
-	$self->{DATA} = $data ;
+	confess "cell data must be a hash reference!" unless 'HASH' eq ref $cell_data ;
+	$self->{CELLS} = $cell_data ;
 	}
 else
 	{
-	$self->{DATA} = {} ;
+	$self->{CELLS} = {} ;
 	}
 }
 
@@ -151,12 +160,20 @@ else
 	confess "Can't find Spreadsheet object for address '$address'.\n." ;
 	}
 
+my $attribute ;
+
+if($address =~ /(.*)\.(.+)/)
+	{
+	$address = $1 ;
+	$attribute = $2 ;
+	}
+	
 my ($cell, $start_cell, $end_cell) = $self->CanonizeAddress($address) ;
 
 if($self->{DEBUG}{FETCH})
 	{
 	my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-	print $dh "Fetching '$start_cell-$end_cell'\n" ;
+	print $dh "Fetching '$start_cell:$end_cell'\n" ;
 	}
 	
 # Set the value in the current spreadsheet
@@ -169,24 +186,24 @@ if($cell)
 		{
 		if('CODE' eq ref $self->{DEBUG}{FETCH_TRIGGER}{$start_cell})
 			{
-			$self->{DEBUG}{FETCH_TRIGGER}{$start_cell}->($self, $start_cell) ;
+			$self->{DEBUG}{FETCH_TRIGGER}{$start_cell}->($self, $start_cell, $attribute) ;
 			}
 		else
 			{
 			if(exists $self->{DEBUG}{FETCH_TRIGGER_HANDLER})
 				{
-				$self->{DEBUG}{FETCH_TRIGGER_HANDLER}->($self, $start_cell) ;
+				$self->{DEBUG}{FETCH_TRIGGER_HANDLER}->($self, $start_cell, $attribute) ;
 				}
 			else
 				{
 				my $value_text  ;
-				if(exists $self->{DATA}{$start_cell})
+				if(exists $self->{CELLS}{$start_cell})
 					{
-					$value_text = defined $self->{DATA}{$start_cell} ? "$self->{DATA}{$start_cell}{VALUE}" : 'undef' ;
+					$value_text = defined $self->{CELLS}{$start_cell} ? "$self->{CELLS}{$start_cell}{VALUE}" : 'undef' ;
 					}
 				else
 					{
-					$value_text    = "cell doesn't exist!" unless exists $self->{DATA}{$start_cell} ;
+					$value_text    = "cell doesn't exist!" unless exists $self->{CELLS}{$start_cell} ;
 					}
 				
 				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
@@ -195,149 +212,159 @@ if($cell)
 			}
 		}
 		
-	if(exists $self->{DATA}{$start_cell})
+	if(exists $self->{CELLS}{$start_cell})
 		{
-		my $current_cell = $self->{DATA}{$start_cell} ;
+		my $current_cell = $self->{CELLS}{$start_cell} ;
 		
-		if($self->{DEBUG}{FETCHED})
+		if(defined $attribute)
 			{
-			$current_cell->{FETCHED}++ ;
-			}
-			
-		my $caller ;
-		
-		if(exists $current_cell->{CYCLIC_FLAG})
-			{
-			my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-			
-			push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
-			print $dh $self->DumpDependentStack() ;
-			
-			#~ confess "Found cyclic dependencies!" ;
-			die "Found cyclic dependencies!" ;
-			}
-		else
-			{
-			$current_cell->{CYCLIC_FLAG}++ ;
-			}
-		
-		$self->FindDependent($current_cell, $start_cell) ;
-		push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
-		
-		if($self->{DEBUG}{DEPENDENT_STACK})
-			{
-			my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-			print $dh $self->DumpDependentStack() ;
-			}
-			
-		if(exists $current_cell->{FORMULA} && ! exists $current_cell->{SUB})
-			{
-			my $formula = $current_cell->{FORMULA} ;
-			
-			$current_cell->{NEED_UPDATE} = 1 ;
-			($current_cell->{SUB}, $current_cell->{GENERATED_FORMULA}) = GenerateFormulaSub
-														(
-														  $self
-														, $address
-														, $address
-														, $formula->[0]
-														, (@$formula)[1 .. (@$formula - 1)]
-														) ;
-			}
-			
-		if(exists $current_cell->{SUB})
-			{
-			if($self->{AUTOCALC})
+			if(exists $current_cell->{$attribute})
 				{
-				if($current_cell->{NEED_UPDATE})
-					{
-					if($self->{DEBUG}{SUB})
-						{
-						my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-						my $ss_name = $self->GetName() ;
-						
-						print $dh "Running Sub @ '$ss_name!$start_cell'" ;
-						
-						if(exists $current_cell->{FORMULA})
-							{
-							print $dh " formula: @{$current_cell->{FORMULA}}" ;
-							}
-							
-						print $dh " defined at '@{$current_cell->{DEFINED_AT}}}'" if(exists $current_cell->{DEFINED_AT}) ;
-						print $dh "\n" ;
-						}
-						
-					my $args ;
-					if(exists $current_cell->{SUB_ARGS} && @{$current_cell->{SUB_ARGS}})
-						{
-						$args = $current_cell->{SUB_ARGS} ;
-						}
-					else
-						{
-						$args = [] ;
-						}
-						
-					$value = ($current_cell->{SUB})->($self, $start_cell, @$args) ;
-					
-					# handle caching
-					if(exists $current_cell->{CACHE} && (! $current_cell->{CACHE}))
-						{
-						delete $current_cell->{VALUE} ;
-						}
-					else
-						{
-						$current_cell->{VALUE} = $value ;
-						$current_cell->{NEED_UPDATE} = 0 ;
-						}
-					}
-				else
-					{
-					$value = $current_cell->{VALUE} ;
-					}
-				}
-			else
-				{
-				if($current_cell->{NEED_UPDATE})
-					{
-					$value = $self->{NEED_UPDATE_MESSAGE} ;
-					}
-				else
-					{
-					#handle cache
-					if(exists $current_cell->{CACHE} && (! $current_cell->{CACHE}))
-						{
-						$value = $self->{NEED_UPDATE_MESSAGE} ;
-						}
-					else
-						{
-						$value = $current_cell->{VALUE} ;
-						}
-					}
-				}
-			}
-		else
-			{
-			if(exists $current_cell->{VALUE})
-				{
-				$value = $current_cell->{VALUE} ;
+				$value = $current_cell->{$attribute} ;
 				}
 			else
 				{
 				$value = undef ;
 				}
 			}
+		else
+			{
+			if($self->{DEBUG}{FETCHED})
+				{
+				$current_cell->{FETCHED}++ ;
+				}
+				
+			my $caller ;
 			
-		pop @{$self->{DEPENDENT_STACK}} ;
-		delete $current_cell->{CYCLIC_FLAG} ;
+			if(exists $current_cell->{CYCLIC_FLAG})
+				{
+				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+				
+				push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
+				print $dh $self->DumpDependentStack() ;
+				
+				die "Found cyclic dependencies!" ;
+				}
+			else
+				{
+				$current_cell->{CYCLIC_FLAG}++ ;
+				}
+			
+			$self->FindDependent($current_cell, $start_cell) ;
+			push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
+			
+			if($self->{DEBUG}{DEPENDENT_STACK}) #! TODO: dump stack on specific cells
+				{
+				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+				print $dh $self->DumpDependentStack() ;
+				}
+				
+			if(exists $current_cell->{FORMULA} && ! exists $current_cell->{FETCH_SUB})
+				{
+				my $formula = $current_cell->{FORMULA} ;
+				
+				$current_cell->{NEED_UPDATE} = 1 ;
+				($current_cell->{FETCH_SUB}, $current_cell->{GENERATED_FORMULA}) = GenerateFormulaSub
+															(
+															  $self
+															, $address
+															, $address
+															, $formula->[0]
+															, (@$formula)[1 .. (@$formula - 1)]
+															) ;
+				}
+			
+			if(exists $current_cell->{FETCH_SUB})
+				{
+				if($self->{AUTOCALC})
+					{
+					if($current_cell->{NEED_UPDATE} || ! exists $current_cell->{NEED_UPDATE})
+						{
+						if($self->{DEBUG}{FETCH_SUB})
+							{
+							my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+							my $ss_name = $self->GetName() ;
+							
+							print $dh "Running Sub @ '$ss_name!$start_cell'" ;
+							
+							if(exists $current_cell->{FORMULA})
+								{
+								print $dh " formula: @{$current_cell->{FORMULA}}" ;
+								}
+								
+							print $dh " defined at '@{$current_cell->{DEFINED_AT}}}'" if(exists $current_cell->{DEFINED_AT}) ;
+							print $dh "\n" ;
+							}
+							
+						if(exists $current_cell->{FETCH_SUB_ARGS} && @{$current_cell->{FETCH_SUB_ARGS}})
+							{
+							$value = ($current_cell->{FETCH_SUB})->($self, $start_cell, @{$current_cell->{FETCH_SUB_ARGS}}) ;
+							}
+						else
+							{
+							$value = ($current_cell->{FETCH_SUB})->($self, $start_cell) ;
+							}
+							
+						# handle caching
+						if(exists $current_cell->{CACHE} && (! $current_cell->{CACHE}))
+							{
+							delete $current_cell->{VALUE} ;
+							}
+						else
+							{
+							$current_cell->{VALUE} = $value ;
+							$current_cell->{NEED_UPDATE} = 0 ;
+							}
+						}
+					else
+						{
+						$value = $current_cell->{VALUE} ;
+						}
+					}
+				else
+					{
+					if($current_cell->{NEED_UPDATE})
+						{
+						$value = $self->{NEED_UPDATE_MESSAGE} ;
+						}
+					else
+						{
+						#handle cache
+						if(exists $current_cell->{CACHE} && (! $current_cell->{CACHE}))
+							{
+							$value = $self->{NEED_UPDATE_MESSAGE} ;
+							}
+						else
+							{
+							$value = $current_cell->{VALUE} ;
+							}
+						}
+					}
+				}
+			else
+				{
+				if(exists $current_cell->{VALUE})
+					{
+					$value = $current_cell->{VALUE} ;
+					}
+				else
+					{
+					$value = undef ;
+					}
+				}
+				
+			pop @{$self->{DEPENDENT_STACK}} ;
+			delete $current_cell->{CYCLIC_FLAG} ;
+			}
 		}
 	else
 		{
 		$value = undef ;
-
+			
 		if(exists $self->{DEPENDENT_STACK} && @{$self->{DEPENDENT_STACK}})
 			{
-			$self->{DATA}{$start_cell} = {} ; # create the cell to hold the dependent
-			$self->FindDependent($self->{DATA}{$start_cell}, $start_cell) ;
+			$self->{CELLS}{$start_cell} = {} ; # create the cell to hold the dependent
+			$self->FindDependent($self->{CELLS}{$start_cell}, $start_cell) ;
 			}
 		
 		if($self->{DEBUG}{DEPENDENT_STACK})
@@ -355,13 +382,13 @@ if($cell)
 	}
 else
 	{
-	my $values ;
+	my @values ;
 	for my $current_address ($self->GetAddressList($address))
 		{
-		push @$values, $self->Get($current_address) ;
+		push @values, $self->Get($current_address) ;
 		}
 		
-	return($values) ;
+	return(\@values) ;
 	}
 }
 
@@ -379,13 +406,13 @@ if(exists $self->{DEPENDENT_STACK} && @{$self->{DEPENDENT_STACK}})
 	
 	if($self->{DEBUG}{DEPENDENT})
 		{
-		$current_cell->{DEPENDENT}{$dependent_name}{DATA} = $dependent ;
+		$current_cell->{DEPENDENT}{$dependent_name}{CELLS} = $dependent ;
 		$current_cell->{DEPENDENT}{$dependent_name}{COUNT}++ ;
-		$current_cell->{DEPENDENT}{$dependent_name}{FORMULA} = $spreadsheet->{DATA}{$cell_name}{FORMULA} ;
+		$current_cell->{DEPENDENT}{$dependent_name}{FORMULA} = $spreadsheet->{CELLS}{$cell_name}{FORMULA} ;
 		}
 	else
 		{
-		$current_cell->{DEPENDENT}{$dependent_name}{DATA} = $dependent ;
+		$current_cell->{DEPENDENT}{$dependent_name}{CELLS} = $dependent ;
 		}
 	}
 }
@@ -434,12 +461,12 @@ if($self->{DEBUG}{STORE})
 # Set the value in the current spreadsheet
 for my $current_address ($self->GetAddressList($address))
 	{
-	unless(exists $self->{DATA}{$current_address})
+	unless(exists $self->{CELLS}{$current_address})
 		{
-		$self->{DATA}{$current_address} = {} ;
+		$self->{CELLS}{$current_address} = {} ;
 		}
 	
-	my $current_cell = $self->{DATA}{$current_address} ;
+	my $current_cell = $self->{CELLS}{$current_address} ;
 	
 	if($self->{DEBUG}{STORED})
 		{
@@ -500,11 +527,11 @@ for my $current_address ($self->GetAddressList($address))
 				{
 				delete $current_cell->{VALUE} ;
 				
-				$current_cell->{SUB_ARGS}      = [(@$value)[1 .. (@$value - 1)]] ;
+				$current_cell->{FETCH_SUB_ARGS}      = [(@$value)[1 .. (@$value - 1)]] ;
 				$current_cell->{FORMULA}       = $value ;
 				$current_cell->{NEED_UPDATE}   = 1 ;
 				$current_cell->{ANCHOR}        = $address ;
-				($current_cell->{SUB}, , $current_cell->{GENERATED_FORMULA}) = GenerateFormulaSub
+				($current_cell->{FETCH_SUB}, , $current_cell->{GENERATED_FORMULA}) = GenerateFormulaSub
 																(
 																  $self
 																, $current_address
@@ -514,18 +541,12 @@ for my $current_address ($self->GetAddressList($address))
 				last ;
 				} ;
 				
-			/^Spreadsheet::Perl::Format::Add$/ && do
+			/^Spreadsheet::Perl::Format$/ && do
 				{
-				$current_cell->{FORMAT} = {%{$current_cell->{FORMAT}}, @$value} ;
+				@{$current_cell->{FORMAT}}{keys %$value} = values %$value ;
 				last ;
 				} ;
-			
-			/^Spreadsheet::Perl::Format::Set$/ && do
-				{
-				$current_cell->{FORMAT} = {@$value} ;
-				last ;
-				} ;
-			
+				
 			/^Spreadsheet::Perl::Validator::Add$/ && do
 				{
 				push @{$current_cell->{VALIDATORS}}, [$value->[0], $value->[1]] ;
@@ -538,13 +559,22 @@ for my $current_address ($self->GetAddressList($address))
 				last ;
 				} ;
 			
-			/^Spreadsheet::Perl::Function$/ && do
+			/^Spreadsheet::Perl::FetchFunction$/ && do
 				{
 				delete $current_cell->{VALUE} ;
 				
-				$current_cell->{SUB}         = $value->[0] ;
-				$current_cell->{SUB_ARGS}    = [ @$value[1 .. (@$value - 1)] ] ;
+				$current_cell->{FETCH_SUB}         = $value->[0] ;
+				$current_cell->{FETCH_SUB_ARGS}    = [ @$value[1 .. (@$value - 1)] ] ;
 				$current_cell->{NEED_UPDATE} = 1 ;
+				last ;
+				} ;
+				
+			/^Spreadsheet::Perl::StoreFunction$/ && do
+				{
+				delete $current_cell->{VALUE} ;
+				
+				$current_cell->{STORE_SUB}         = $value->[0] ;
+				$current_cell->{STORE_SUB_ARGS}    = [ @$value[1 .. (@$value - 1)] ] ;
 				last ;
 				} ;
 				
@@ -553,30 +583,48 @@ for my $current_address ($self->GetAddressList($address))
 				$current_cell->{USER_DATA} = {@$value} ;
 				last
 				} ;
-				
+			#----------------------
 			# setting a value:
+			#----------------------
 			delete $current_cell->{FORMULA} ;
 			delete $current_cell->{NEED_UPDATE} ; 
 			delete $current_cell->{CACHE} ; 
-			delete $current_cell->{SUB} ;
-			delete $current_cell->{SUB_ARGS} ;
+			delete $current_cell->{FETCH_SUB} ;
+			delete $current_cell->{FETCH_SUB_ARGS} ;
 			delete $current_cell->{ANCHOR} ;
-			# fall through!!!!
 			
-			/^Spreadsheet::Perl::RangeValues$/ && do
+			my $value_to_store = $value ; # do not modify $value as it is used again when storing ranges
+			
+			# check for range fillers
+			if(/^Spreadsheet::Perl::RangeValues$/)
 				{
-				$current_cell->{VALUE} = shift @$value ;
-				last
-				} ;
-				
-			/^Spreadsheet::Perl::RangeValuesSub$/ && do
+				$value_to_store  = shift @$value  ;
+				}
+			else
 				{
-				$current_cell->{VALUE} = $value->[0]($self, $address, $current_address, @$value[1 .. (@$value - 1)]) ;
-				last
-				} ;
-				
-			# DEFAULT:
-				$current_cell->{VALUE} = $value ;
+				if(/^Spreadsheet::Perl::RangeValuesSub$/)
+					{
+					$value_to_store = $value->[0]($self, $address, $current_address, @$value[1 .. (@$value - 1)]) ;
+					}
+				#else
+					# store the value passed to STORE
+				}
+			
+			if(exists $current_cell->{STORE_SUB})
+				{
+				if(exists $current_cell->{STORE_SUB_ARGS} && @{$current_cell->{STORE_SUB_ARGS}})
+					{
+					$current_cell->{STORE_SUB}->($self, $current_address, $value_to_store, @{$current_cell->{STORE_SUB_ARGS}}) ;
+					}
+				else
+					{
+					$current_cell->{STORE_SUB}->($self, $current_address, $value_to_store) ;
+					}
+				}
+			else
+				{
+				$current_cell->{VALUE} = $value_to_store ;
+				}
 			}
 		}
 	else
@@ -596,14 +644,14 @@ return unless exists $current_cell->{DEPENDENT} ;
 
 for my $dependent_name (keys %{$current_cell->{DEPENDENT}})
 	{
-	my $dependent = $current_cell->{DEPENDENT}{$dependent_name}{DATA} ;
+	my $dependent = $current_cell->{DEPENDENT}{$dependent_name}{CELLS} ;
 	my ($spreadsheet, $cell_name) = @$dependent ;
 	
-	if(exists $spreadsheet->{DATA}{$cell_name})
+	if(exists $spreadsheet->{CELLS}{$cell_name})
 		{
-		if(exists $spreadsheet->{DATA}{$cell_name}{SUB})
+		if(exists $spreadsheet->{CELLS}{$cell_name}{FETCH_SUB})
 			{
-			$spreadsheet->{DATA}{$cell_name}{NEED_UPDATE}++ ;
+			$spreadsheet->{CELLS}{$cell_name}{NEED_UPDATE}++ ;
 			}
 		else
 			{
@@ -626,7 +674,7 @@ my $address = shift ;
 
 for my $current_address ($self->GetAddressList($address))
 	{
-	delete $self->{DATA}{$current_address} ;
+	delete $self->{CELLS}{$current_address} ;
 	}
 }
 
@@ -635,7 +683,7 @@ sub CLEAR
 my $self    = shift ;
 my $address = shift ;
 
-delete $self->{DATA} ;
+delete $self->{CELLS} ;
 }
 
 sub EXISTS   
@@ -645,7 +693,7 @@ my $address = shift ;
 
 for my $current_address ($self->GetAddressList($address))
 	{
-	unless(exists $self->{DATA}{$current_address})
+	unless(exists $self->{CELLS}{$current_address})
 		{
 		return(0) ;
 		}
@@ -657,15 +705,15 @@ return(1) ;
 sub FIRSTKEY 
 {
 my $self = shift ;
-scalar(keys %{$self->{DATA}}) ;
+scalar(keys %{$self->{CELLS}}) ;
 
-return scalar each %{$self->{DATA}} ;
+return scalar each %{$self->{CELLS}} ;
 }
 
 sub NEXTKEY  
 {
 my $self = shift;
-return scalar each %{ $self->{DATA} }
+return scalar each %{ $self->{CELLS} }
 }
 
 sub DESTROY  
@@ -681,17 +729,24 @@ my $address = shift ;
 my $cell    = shift ;
 my $value   = shift ;
 
-if($self->IsCellLocked($address))
+if($self->{LOCKED})
 	{
-	carp "While setting '$address': Lock is active" ;
-		
+	carp "While setting '$address': Spreadsheet lock is active" ;
 	return(0) ;
 	}
 else
 	{
-	return(1) ;
+	if($self->IsCellLocked($address))
+		{
+		carp "While setting '$address': Cell lock is active" ;
+			
+		return(0) ;
+		}
+	else
+		{
+		return(1) ;
+		}
 	}
-
 
 }
 
@@ -733,64 +788,220 @@ Spreadsheet::Perl - Pure Perl implementation of a spreadsheet
 =head1 DESCRIPTION
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet. 
-I you have an application that takes some input and does calculation on them, chances
-are that implementing it through a spreadsheet will make it more maintainable and easier to develop. I found
-no spreadsheet modules on CPAN (programmers tend to think a spreadsheet is not a programming tool). The idea that it would be
-very easy to implement in perl kept going round in my head. I put the limit of 500 lines of code for a functional spreadsheeet.
-It took a few days to get something viable and it was just under 5OO lines. When debuggin help kicked in the module became a bit bigger,
-still Spreadsheet::Perl is quite minimal in size and can do the the folowwing:
 
-- set and get values from cells or ranges
-- cell private data
-- cell/range fillers/"wizards"
-- set formulas (pure perl)
-- compute the dependencies between cells 
-- formulas can fetch data from multiple spreadsheets and the dependencies still work
-- checks for circular dependencies
-- debugging triggers
-- has a simple architecture for expansion
-- has a simple architecture for debugging (and some flags are already implemented)
-- can read it's data from a file
-- supports cell naming
-- cell and range locking
-- input validators
-- cell formats (pod, html, ...)
-- can define spreadsheet functions from the scripts using it or via a new module of your own
-- AUTOCALC ON/OFF, Recalculate()
-- value caching to speed up formulas and 'volatile' cells
-- cell address offseting functions
-- Automatic formula offseting
-- Relative and fixed cell addresses
-- slice access
-- cells can be assigned a sub reference and be non-caching. this could be used for reading from a database
-- split in many small modules so you pay only for what you need
-- some debugging tool (dump, formula stack trace, ...)
+Spreadsheet::Perl is minimal in size and can do the the folowwing:
 
-All this under 1500 lines of code, the biggest module being just under 700 lines. Perl rocks.
+=over 2
+
+=item * set and get values from cells or ranges
+
+=item * cell private data
+
+=item * fetch/store callback
+
+=item * cell attributes access
+
+=item * cell/range fillers/"wizards"
+
+=item * set formulas (pure perl)
+
+=item * compute the dependencies between cells 
+
+=item * formulas can fetch data from multiple spreadsheets and the dependencies still work
+
+=item * checks for circular dependencies
+
+=item * debugging triggers
+
+=item * has a simple architecture for expansion
+
+=item * has a simple architecture for debugging (and some flags are already implemented)
+
+=item * can read it's data from a file
+
+=item * supports cell naming
+
+=item * cell and range locking
+
+=item * input validators
+
+=item * cell formats (pod, html, ...)
+
+=item * can define spreadsheet functions from the scripts using it or via a new module of your own
+
+=item * AUTOCALC ON/OFF, Recalculate()
+
+=item * value caching to speed up formulas and 'volatile' cells
+
+=item * cell address offseting functions
+
+=item * Automatic formula offseting
+
+=item * Relative and fixed cell addresses
+
+=item * slice access
+
+=item * minimal size
+
+=item * some debugging tool (dump, formula stack trace, ...)
+
 
 Look at the 'tests' directory for some examples.
+
+
+=head1 DRIVING FORCE
+
+=head2 Why
+
+I found no spreadsheet modules on CPAN (I see a spreadsheet as a programming tool). The idea that it would be
+very easy to implement in perl kept going round in my head. I put the limit at 500 lines of code for a functional spreadsheeet.
+It took a few days to get something viable and it was just under 5OO lines.
+
+I you have an application that takes some input and does calculation on them, chances
+are that implementing it through a spreadsheet will make it more maintainable and easier to develop.
+Here are the reasons (IMO) why:
+
+=over 2
+
+=item * Spreadsheet programming (SP) is data oriented and this is what programming should be more often.
+
+=item * SP is encapsulating. The processing is "hidden"behind the cell value in form of formulas.
+
+=item * SP is encapsulating II. The data dependencies are automatically computed by the spreadsheet, releaving 
+you from keeping things in synch
+
+=item * SP is 2 dimensional (or 3 or 4 four that might not be easier for that), specialy if you have a gui  for it.
+
+=item * If you have a gui, SP is visual programming and visual debugging as the 
+spreadsheet is the input and the dump of the data. The possibility to to 
+show a multi-dimentional dependency is great as is the fact that you don't 
+need to look around for where things are defined (this is more about 
+visual programming but still fit spreadsheets as they are often gui based)
+
+=item * SP allows for user customization 
+
+=back
+
+=head2 How
+
+I want B<Spreadsheets::Perl> to:
+
+=over 2
+
+=item * Be Perl, be Perl, be fully Perl
+
+=item * Be easy to develop, I try to implement nothing that is already there
+
+=item * Be easy to expand
+
+=item * Be easy to use for Perl programmers
+
+=back 
+
+=head1 CREATING A SPREADSHEET
+
+=head2 Setting up data
+
+=head2 reading data from a file
+
+=head2 dumping a spreadsheet
+
+=head2 Formulas
+
+=head3 builtin functions
+
+=head3 cell dependencies
+
+=head3 circular dependencies
+
+=head1 CELL and RANGE: ADDRESSING, NAMING
+
+=head2 Address format
+
+=head2 Slices
+
+=head2 Names
+
+=head1 OTHER SPREADSHEET
+
+=head1 SPREADSHEEET Functions
+
+=head2 Locking
+
+=head2 Calculation control
+
+=head2 State queries
+
+=head1 SETTING CELLS
+
+=head2 Setting a value
+
+=head3 RangeValues
+
+=head2 Setting a formula
+
+=head3 Caching
+
+=head2 Setting a format
+
+=head2 Setting fetch and store callbacks
+
+=head2 Setting Validators
+
+=head2 Setting User data
+
+=head1 READING CELLS
+
+=head2 Reading values
+
+=head2 Reading internal data
+
+=head2 Reading user data
+
+=head1 Debugging
+
 =head1 TODO
 
 Unfortunately there is still a lot to do (the basics are there) and I have the feeling I will not get the time needed.
 If someone is willing to help or take over, I'll be glad to step aside.
 
 Here are some of the things that I find missing, this doesn't mean all are good ideas:
-- documentation, test (working on it)
-- perl debugger support à la PBS
-- Row/column/spreadsheet default values.
-- R1C1 Referencing
-- database interface (a handfull of functions at most)
-- WWW interface
-- Arithmetic functions (only Sum is implemented), statistic functions
-- printing, exporting
-- importing from other spreadsheets
-- more serious file reading and file writting
-- complex stuff (fixing one fixes the other)
-	- Insertion of rows and columns
-	- Deletion of rows and columns
-	- Sorting
-- a gui (curses, tk, wxWindows) would be great!
-- a nice logo :-)
+
+=item * documentation, test (working on it)
+
+=item * perl debugger support à la PBS
+
+=item * Row/column/spreadsheet default values.
+
+=item * R1C1 Referencing
+
+=item * database interface (a handfull of functions at most)
+
+=item * WWW interface
+
+=item * Arithmetic functions (only Sum is implemented), statistic functions
+
+=item * printing, exporting
+
+=item * importing from other spreadsheets
+
+=item * more serious file reading and file writting
+
+=item * complex stuff (fixing one fixes the other)
+
+=over 4
+
+=item * Insertion of rows and columns
+
+=item * Deletion of rows and columns
+
+=item * Sorting
+
+=back
+
+=item * a gui (curses, tk, wxWindows) would be great!
+
+=item * a nice logo :-)
 
 Some stuff is available on CPAN, just some glue is needed.
 
@@ -813,3 +1024,4 @@ B<Spreadsheet::ConvertAA>.
 B<Data::TreeDumper> is used if found (I recommend installing it to get nice dumps).
 
 =cut
+

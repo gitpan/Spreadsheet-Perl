@@ -11,13 +11,19 @@ Insertion of rows and columns (=> formulas !!)
 Deletion of rows and columns (=> formulas !!)
 Sorting (=> formulas !!)
 
+Find, FindAndReplace
+
 Perl debugger support: breakpoint ...
 
-$ss->{DEBUG}{FETCH_CELL}{A1}++ /= sub ; # display message when 'A1' is fetched
+#Change DATA to CELLS
 
-AddFormat should be deep
+#$ss{A9.USER_DATA} ;
 
-Find, FindAndReplace
+#Store callback
+
+#$ss->{DEBUG}{FETCH_CELL}{A1}++ /= sub ; # display message when 'A1' is fetched
+
+#!AddFormat should be deep => user can get the format and modify it
 
 #Let range share validators
 #Range fillers

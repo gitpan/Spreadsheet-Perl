@@ -4,9 +4,6 @@ use strict ;
 use warnings ;
 
 use Spreadsheet::Perl ; 
-use Spreadsheet::Perl::QuerySet ;
-
-use Data::Dumper ;
 
 tie my %ss, "Spreadsheet::Perl" ;
 my $ss = tied %ss ;

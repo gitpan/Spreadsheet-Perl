@@ -3,17 +3,8 @@ use Carp ;
 use strict ;
 use warnings ;
 
-use Spreadsheet::Perl ; # tie
-use Spreadsheet::Perl::Cache ;
-use Spreadsheet::Perl::QuerySet ;
-use Spreadsheet::Perl::Validator ;
-use Spreadsheet::Perl::Formula ;
-use Spreadsheet::Perl::Format ;
-use Spreadsheet::Perl::Lock ;
-use Spreadsheet::Perl::Devel ;
+use Spreadsheet::Perl ;
 use Spreadsheet::Perl::Arithmetic ;
-
-use Data::Dumper ;
 
 tie my %romeo, "Spreadsheet::Perl" ;
 my $romeo = tied %romeo ;
@@ -38,23 +29,18 @@ $juliette->SetName('JULIETTE') ;
 #~ $juliette->{DEBUG}{DEPENDENT_STACK}++ ;
 #~ $juliette->{DEBUG}{DEPENDENT}++ ;
 
-# inter spreadsheet addresses
 $romeo->AddSpreadsheet('JULIETTE', $juliette) ;
 $juliette->AddSpreadsheet('ROMEO', $romeo) ;
 
-$romeo{'B1:B5'} = 8 ;
+$romeo{'B1:B5'} = 10 ;
 
-# inter ss cycles
-#~ $juliette{A3} = Spreadsheet::Perl::Formula('$ss->Sum("ROMEO!A1")') ;  ;
+#~ $romeo{'JULIETTE!A4'} = 5 ; # <=> $juliette{A4}  = 5
+$juliette{A4} = 5 ;
+$juliette{A5} = Formula('$ss->Sum("ROMEO!B1:B5") + $ss{"ROMEO!B2"}') ; 
 
-#~ $romeo{'JULIETTE!A4'} = 8 ; # <=> $juliette{A4}  = 8
-#~ $juliette{A1} = 0 ;
-$juliette{A4} = 8 ;
-$juliette{A5} = Spreadsheet::Perl::Formula('$ss->Sum("ROMEO!B1:B5") + $ss{"ROMEO!B2"}') ; 
-
-$romeo{A1} = Spreadsheet::Perl::Formula('$ss->Sum("JULIETTE!A1:A5", "A2")') ;
-$romeo{A3} = Spreadsheet::Perl::Formula('$ss{A2}') ;
+$romeo{A1} = Formula('$ss->Sum("JULIETTE!A1:A5", "A2")') ;
 $romeo{A2} = 100 ;
+$romeo{A3} = Formula('$ss{A2}') ;
 
 $romeo->Recalculate() ; #update dependents
 #~ # or 
@@ -71,3 +57,7 @@ $romeo{A2}++ ; # A1 and A3 need update now
 print $romeo->Dump(undef,1) ;
 print $juliette->Dump(undef,1) ;
 
+# inter ss cycles
+$juliette{A3} = Formula('$ss->Sum("ROMEO!A1")') ;  ;
+
+$juliette{A3} ; # void context, generates warning

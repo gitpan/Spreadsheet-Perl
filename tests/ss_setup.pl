@@ -13,7 +13,7 @@ return(1_000_000) ;
 
 A1 => 120, 
 A2 => sub{1},
-A3 => Spreadsheet::Perl::Formula('$ss->Sum("A1:A2")'),
+A3 => Formula('$ss->Sum("A1:A2")'),
 
 B1 => 3,
 

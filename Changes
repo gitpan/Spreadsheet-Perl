@@ -4,3 +4,10 @@ Revision history for Perl extension Spreadsheet::Perl.
 	- original version; created by h2xs 1.21 with options
 		-X -n Spreadsheet::Perl
 
+0.02  Sun Jan  11 17:00:00 2004
+	ADDED: FETCH callbacks
+	ADDED: attributes access
+	FIXED: importing of sub names thanks to Yitzchak Scott-Thoennes
+	ADDED: tests and examples
+	
+

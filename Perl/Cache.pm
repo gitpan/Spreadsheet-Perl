@@ -19,7 +19,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( Cache NoCache) ;
+#~ our @EXPORT = qw( Cache NoCache) ;
+our @EXPORT ;
+push @EXPORT, qw( Cache NoCache ) ;
+
 our $VERSION = '0.01' ;
 
 #-------------------------------------------------------------------------------

@@ -4,8 +4,6 @@ use strict ;
 use warnings ;
 
 use Spreadsheet::Perl ;
-use Spreadsheet::Perl::QuerySet ;
-use Spreadsheet::Perl::Devel ;
 use Spreadsheet::Perl::Arithmetic ;
 
 tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
@@ -14,8 +12,8 @@ my $ss = tied %ss ;
 %ss = 
 	(
 	  A1 => 1
-	, A2 => Spreadsheet::Perl::Function(sub{1})
-	, A3 => Spreadsheet::Perl::Formula('$ss->Sum("A1:A2")') 
+	, A2 => FetchFunction(sub{1})
+	, A3 => Formula('$ss->Sum("A1:A2")') 
 	
 	, B1 => 3
 	, c2 => "hi there"

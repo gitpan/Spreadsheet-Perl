@@ -19,7 +19,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( Formula DefineFunction ) ;
+#~ our @EXPORT = qw( Formula ) ;
+our @EXPORT ;
+push @EXPORT, qw( Formula ) ;
+
 our $VERSION = '0.01' ;
 
 #-------------------------------------------------------------------------------
@@ -67,7 +70,7 @@ return
 			my $ss_name = defined $ss->{NAME} ? "$ss->{NAME}!" : "$ss!" ;
 				
 			print $dh "At cell '$ss_name$cell' formula: $formula" ;
-			print $dh " defined at '@{$ss->{DATA}{$cell}{DEFINED_AT}}'" if(exists $ss->{DATA}{$cell}{DEFINED_AT}) ;
+			print $dh " defined at '@{$ss->{CELLS}{$cell}{DEFINED_AT}}'" if(exists $ss->{CELLS}{$cell}{DEFINED_AT}) ;
 			print $dh ":\n" ;
 			print $dh "\t$@" ;
 			return($ss->{MESSAGE}{ERROR}) ;
@@ -93,9 +96,9 @@ my ($cell, $start_cell, $end_cell) = $self->CanonizeAddress($address) ;
 
 if($cell)
 	{
-	if(exists $self->{DATA}{$start_cell} && exists $self->{DATA}{$start_cell}{FORMULA})
+	if(exists $self->{CELLS}{$start_cell} && exists $self->{CELLS}{$start_cell}{FORMULA})
 		{
-		return($self->{DATA}{$start_cell}{FORMULA}[0]) ;
+		return($self->{CELLS}{$start_cell}{FORMULA}[0]) ;
 		}
 	else
 		{

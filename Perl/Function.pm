@@ -19,16 +19,25 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( Function ) ;
+#~ our @EXPORT = qw( StoreFunction FetchFunction) ;
+our @EXPORT ;
+push @EXPORT, qw( StoreFunction FetchFunction) ;
+
 our $VERSION = '0.01' ;
 
 #-------------------------------------------------------------------------------
 
-sub Function
+sub StoreFunction
 {
-return bless [@_], "Spreadsheet::Perl::Function" ;
+return bless [@_], "Spreadsheet::Perl::StoreFunction" ;
 }
 
+#-------------------------------------------------------------------------------
+
+sub FetchFunction
+{
+return bless [@_], "Spreadsheet::Perl::FetchFunction" ;
+}
 
 #-------------------------------------------------------------------------------
 

@@ -21,6 +21,7 @@ $ss->{DEBUG}{ADDRESS_LIST}++ ; # shows the generated address lists
 $ss->{DEBUG}{FETCH_FROM_OTHER}++ ; # show when an inter spreadsheet value is fetched
 $ss->{DEBUG}{DEPENDENT_STACK}++ ; # show the dependent stack every time a value is fetched
 $ss->{DEBUG}{DEPENDENT}++ ; # store information about dependent and show them in dump
+$ss->{DEBUG}{VALIDATOR}++ ; # display calls to all validators in spreadsheet
 
 
 $ss->{DEBUG}{FETCH}++ ; # shows when a cell value is fetched

@@ -1,45 +1,21 @@
-Spreadsheet/Perl version 0.01
+Spreadsheet/Perl version 0.02
 =============================
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet.
-I you have an application that takes some input and does calculation
-on them, chances are that implementing it through a spreadsheet will
-make it more maintainable and easier to develop. I found no spreadsheet
-modules on CPAN (programmers tend to think a spreadsheet is not a
-programming tool). The idea that it would be very easy to implement
-in perl kept going round in my head. I put the limit of 500 lines of
-code for a functional spreadsheeet. It took a few days to get something
-viable and it was just under 5OO lines. When debuggin help kicked in
-the module became a bit bigger, still Spreadsheet::Perl is quite minimal
-in size and can do the the folowwing:
 
-- set and get values from cells or ranges
-- cell private data
-- cell/range fillers/"wizards"
-- set formulas (pure perl)
-- compute the dependencies between cells
-- formulas can fetch data from multiple spreadsheets and the dependencies still work
-- checks for circular dependencies
-- debugging triggers
-- has a simple architecture for expansion
-- has a simple architecture for debugging (and some flags are already implemented)
-- can read it's data from a file
-- supports cell naming
-- cell and range locking
-- input validators
-- cell formats (pod, html, ...)
-- can define spreadsheet functions from the scripts using it or via a new module of your own
-- AUTOCALC ON/OFF, Recalculate()
-- value caching to speed up formulas and 'volatile' cells
-- cell address offseting functions
-- Automatic formula offseting
-- Relative and fixed cell addresses
-- slice access
-- cells can be assigned a sub reference and be non-caching. this could be used for reading from a database
-- split in many small modules so you pay only for what you need
-- some debugging tool (dump, formula stack trace, ...)
+Please look at the man page for more information
 
-All this under 1500 lines of code, the biggest module being just under 700 lines. Perl rocks.
+In this release:
+
+New:
+- Store calls back
+- more examples
+- attribute (read) access through the tied hash
+- started to work on the documentation
+
+Changes/Fixes:
+- podified the pod
+- sub name importing thanks to Yitzchak Scott-Thoenne (though we don't agree on the strategy yet)
 
 TODO
 
@@ -90,6 +66,7 @@ This module requires these other modules and libraries:
 Spreadsheet::ConvertAA.
 
 Data::TreeDumper is used if found (I recommend installing it to get nice dumps).
+Devel::Size
 
 COPYRIGHT AND LICENCE
 

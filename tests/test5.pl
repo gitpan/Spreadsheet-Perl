@@ -1,20 +1,15 @@
 
+# do not use
+
 use Carp ;
 use strict ;
 use warnings ;
 
-use Spreadsheet::Perl ; # tie
-use Spreadsheet::Perl::QuerySet ;
-use Spreadsheet::Perl::Validator ;
-use Spreadsheet::Perl::Formula ;
-use Spreadsheet::Perl::Function ;
-use Spreadsheet::Perl::Format ;
-use Spreadsheet::Perl::Lock ;
-use Spreadsheet::Perl::Devel ;
+use Spreadsheet::Perl ;
 use Spreadsheet::Perl::Arithmetic ;
 
 tie my %ss, "Spreadsheet::Perl"
-		, DATA =>
+		, CELLS =>
 				{
 				  A1 =>
 						{
@@ -23,7 +18,7 @@ tie my %ss, "Spreadsheet::Perl"
 					
 				, A2 =>
 						{
-						SUB => \&DoublePrevious
+						  SUB => \&DoublePrevious
 						, SUB_ARGS => [ 1, 2, 3]
 						}
 				} ;
@@ -31,7 +26,7 @@ tie my %ss, "Spreadsheet::Perl"
 my $ss = tied %ss ;
 
 $ss{'A1:A8'} = '10' ;
-$ss{A9} = Spreadsheet::Perl::Function(\&SumRowsAbove) ;
+$ss{A9} = Spreadsheet::Perl::FetchFunction(\&SumRowsAbove) ;
 
 print "$_ = $ss{$_}\n" for($ss->GetAddressList('A1:A8')) ;
 print "'A9' SumRowsAbove: " . $ss{A9} . "\n" ;

@@ -4,9 +4,6 @@ use strict ;
 use warnings ;
 
 use Spreadsheet::Perl ;
-use Spreadsheet::Perl::QuerySet ;
-use Spreadsheet::Perl::Devel ;
-use Spreadsheet::Perl::RangeValues ;
 
 tie my %ss, "Spreadsheet::Perl" ;
 my $ss = tied %ss ;

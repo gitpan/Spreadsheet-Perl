@@ -19,7 +19,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( ) ;
+#~ our @EXPORT = qw( ) ;
+our @EXPORT ;
+push @EXPORT, qw( ) ;
+
 our $VERSION = '0.01' ;
 
 #-------------------------------------------------------------------------------
@@ -45,7 +48,7 @@ my $lock = shift ;
 
 for my $current_address ($self->GetAddressList($address))
 	{
-	$self->{DATA}{$current_address}{LOCKED} = $lock ;
+	$self->{CELLS}{$current_address}{LOCKED} = $lock ;
 	}
 }
 
@@ -80,11 +83,11 @@ if($self->{LOCKED})
 	}
 else
 	{
-	if(exists $self->{DATA}{$address})
+	if(exists $self->{CELLS}{$address})
 		{
-		if(exists $self->{DATA}{$address}{LOCKED})
+		if(exists $self->{CELLS}{$address}{LOCKED})
 			{
-			return($self->{DATA}{$address}{LOCKED}) ;
+			return($self->{CELLS}{$address}{LOCKED}) ;
 			}
 		else
 			{

@@ -19,7 +19,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( RangeValues RangeValuesSub ) ;
+#~ our @EXPORT = qw( RangeValues RangeValuesSub ) ;
+our @EXPORT ;
+push @EXPORT, qw( RangeValues RangeValuesSub ) ;
+
 our $VERSION = '0.01' ;
 
 #-------------------------------------------------------------------------------

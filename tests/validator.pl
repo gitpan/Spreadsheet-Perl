@@ -4,8 +4,6 @@ use strict ;
 use warnings ;
 
 use Spreadsheet::Perl ;
-use Spreadsheet::Perl::QuerySet ;
-use Spreadsheet::Perl::Devel ;
 
 tie my %ss, "Spreadsheet::Perl" ;
 my $ss = tied %ss ;
@@ -31,7 +29,7 @@ else
 	}
 }
 
-$ss{'A1:A2'} = Spreadsheet::Perl::Validator('only letters', \&OnlyLetters) ;
+$ss{'A1:A2'} = Validator('only letters', \&OnlyLetters) ;
 print $ss->Dump() ;
 
 $ss{'A1:A2'} = undef ;
@@ -39,3 +37,8 @@ $ss{A1} = '' ;
 $ss{A1} = 1 ;
 $ss{A1} = {} ;
 $ss{A1} = 'hi' ;
+
+$ss->{DEBUG}{VALIDATOR}++ ; # display calls to all validators in spreadsheet
+$ss{A1} = 0 ;
+$ss{A1}++ ;
+

@@ -1,17 +1,11 @@
 
+# do not use 
+
 use Carp ;
 use strict ;
 use warnings ;
 
-use Spreadsheet::Perl ; # tie
-use Spreadsheet::Perl::Cache ;
-use Spreadsheet::Perl::QuerySet ;
-use Spreadsheet::Perl::Validator ;
-use Spreadsheet::Perl::Formula ;
-use Spreadsheet::Perl::Function ;
-use Spreadsheet::Perl::Format ;
-use Spreadsheet::Perl::Lock ;
-use Spreadsheet::Perl::Devel ;
+use Spreadsheet::Perl ;
 use Spreadsheet::Perl::Arithmetic ;
 
 use Data::Dumper ;
@@ -34,14 +28,14 @@ my $ss = tied %ss ;
 
 #Fetcher/Doer
 # dependency OK
-#~ $ss{A1} = Spreadsheet::Perl::Function(sub{ use Data::Dumper; print $ss->Dump() ; return($ss->Get('A2') ) ;}) ;
+#~ $ss{A1} = Spreadsheet::Perl::FetchFunction(sub{ use Data::Dumper; print $ss->Dump() ; return($ss->Get('A2') ) ;}) ;
 #~ $ss{A2} = 'hi' ;
 #~ print $ss{A1} . "\n" ;
 #~ $ss{A2} = 'there' ;
 #~ print $ss{A1} . "\n" ;
 
 # cached value is returned even if the ss is changed
-#~ $ss{A1} = Spreadsheet::Perl::Function(sub{ use Data::Dumper; return($ss->Dump()) ;}) ;
+#~ $ss{A1} = Spreadsheet::Perl::FetchFunction(sub{ use Data::Dumper; return($ss->Dump()) ;}) ;
 #~ $ss{A2} = 'hi' ;
 #~ print $ss{A1} . "\n" ;
 #~ $ss{A2} = 'there' ;
@@ -49,7 +43,7 @@ my $ss = tied %ss ;
 #~ print $ss{A1} . "\n" ; #!!  cached value is returned
 
 #~ $ss{A1} = Spreadsheet::Perl::NoCache() ;
-#~ $ss{A1} = Spreadsheet::Perl::Function(sub{ use Data::Dumper; return($ss->Dump(undef, 1)) ;}) ;
+#~ $ss{A1} = Spreadsheet::Perl::FetchFunction(sub{ use Data::Dumper; return($ss->Dump(undef, 1)) ;}) ;
 #~ $ss{A2} = 'hi' ;
 #~ print $ss{A1} . "\n" ;
 #~ $ss{A2} = 'there' ;

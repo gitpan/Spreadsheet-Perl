@@ -19,7 +19,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( GetCellList GetLastCell  GetFormulaText) ;
+#~ our @EXPORT = qw( GetCellList GetLastCell  GetFormulaText DefineFunction ) ;
+our @EXPORT ;
+push @EXPORT, qw( GetCellList GetLastCell  GetFormulaText DefineFunction ) ;
+
 our $VERSION = '0.01' ;
 
 #-------------------------------------------------------------------------------
@@ -47,9 +50,9 @@ my $self = shift ;
 
 local $self->{AUTOCALC} = 1 ;
 
-for my $cell_name (keys %{$self->{DATA}})
+for my $cell_name (keys %{$self->{CELLS}})
 	{
-	if(exists $self->{DATA}{$cell_name}{SUB})
+	if(exists $self->{CELLS}{$cell_name}{FETCH_SUB})
 		{
 		$self->Get($cell_name) ;
 		}
@@ -152,7 +155,7 @@ sub GetCellList
 {
 my $self = shift ;
 
-return(SortCells(keys %{$self->{DATA}})) ;
+return(SortCells(keys %{$self->{CELLS}})) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -163,7 +166,7 @@ my $self = shift ;
 
 my ($last_letter, $last_number) = ('A', 1) ;
 
-for my $address(keys %{$self->{DATA}})
+for my $address(keys %{$self->{CELLS}})
 	{
 	my ($letter, $number) = $address =~ /([A-Z]+)(.+)/ ;
 	
@@ -187,13 +190,13 @@ return
 	(
 	grep 
 		{
-		   ( exists $ss->{DATA}{$_}{NEED_UPDATE} && $ss->{DATA}{$_}{NEED_UPDATE})
+		   ( exists $ss->{CELLS}{$_}{NEED_UPDATE} && $ss->{CELLS}{$_}{NEED_UPDATE})
 		||
 			(
-			   (exists $ss->{DATA}{$_}{FORMULA} || exists $ss->{DATA}{$_}{SUB})
-			&& (! exists $ss->{DATA}{$_}{NEED_UPDATE})
+			   (exists $ss->{CELLS}{$_}{FORMULA} || exists $ss->{CELLS}{$_}{FETCH_SUB})
+			&& (! exists $ss->{CELLS}{$_}{NEED_UPDATE})
 			)
-		} (SortCells(keys %{$ss->{DATA}}))
+		} (SortCells(keys %{$ss->{CELLS}}))
 	) ;
 }
 
@@ -204,11 +207,15 @@ sub DefineFunction
 my ($ss, $name, $function_ref) = @_ ;
 #~ my ($package, $filename, $line) = caller ;
 
-{
-no strict ;
-*$name = sub {$function_ref->(@_) ;} ;
-}
+#~ *$name = sub {$function_ref->(@_) ;} ; # this has perl generate a <warning but in the wrong context
 
+no strict ;
+if(eval "*Spreadsheet::Perl::$name\{CODE}")
+	{
+	warn "Subroutine Spreadsheet::Perl::$name redefined at @{[join ':', caller()]}\n" ;
+	}
+	
+*$name = $function_ref ; # this doesn't generate a warning but still works
 }
 
 #-------------------------------------------------------------------------------

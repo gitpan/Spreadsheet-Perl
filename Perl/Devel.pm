@@ -19,7 +19,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( ) ;
+#~ our @EXPORT = qw( ) ;
+our @EXPORT ;
+push @EXPORT, qw( ) ;
+
 our $VERSION = '0.02' ;
 
 #-------------------------------------------------------------------------------
@@ -47,13 +50,13 @@ for my $dependent (@{$ss->{DEPENDENT_STACK}})
 	my ($spreadsheet, $address, $name) = @$dependent ;
 	my $formula = '' ;
 	
-	if(exists $spreadsheet->{DATA}{$address}{GENERATED_FORMULA})
+	if(exists $spreadsheet->{CELLS}{$address}{GENERATED_FORMULA})
 		{
-		$formula = ": $spreadsheet->{DATA}{$address}{GENERATED_FORMULA}" ;
+		$formula = ": $spreadsheet->{CELLS}{$address}{GENERATED_FORMULA}" ;
 		
 		if(exists $ss->{DEBUG}{DEFINED_AT})
 			{
-			my ($package, $file, $line) = @{$spreadsheet->{DATA}{$address}{DEFINED_AT}} ;
+			my ($package, $file, $line) = @{$spreadsheet->{CELLS}{$address}{DEFINED_AT}} ;
 			$formula .= "[$package] $file:$line" ;
 			}
 		}
@@ -73,20 +76,26 @@ sub Dump
 my $ss = shift ;
 my $address_list  = shift ; # array ref
 my $display_setup = shift ;
+my $dtd_setup     = shift || {} ;
 
 use Data::Dumper ;
 $Data::Dumper::Indent = 1 ;
 #~ return(Dumper($ss)) ;
 
 my $use_data_treedumper = 0 ;
+my $use_devel_size = 0 ;
 
-eval 
-	{
-	use Data::TreeDumper ;
-	$Data::TreeDumper::Useascii = 0 ;
-	#~ return DumpTree($ss, 'ss:') ;
-	$use_data_treedumper = 1 ;
-	} ;
+eval <<'EOE' ;
+use Devel::Size qw(size total_size) ;
+$Devel::Size::warn = 0 ;
+$use_devel_size = 1 ;
+EOE
+
+eval <<'EOE' ;
+use Data::TreeDumper ;
+$Data::TreeDumper::Useascii = 0 ;
+$use_data_treedumper = 1 ;
+EOE
 
 my $dump ;
 
@@ -96,6 +105,11 @@ $dump .= "$ss " ;
 if(exists $ss->{NAME} && defined $ss->{NAME})
 	{
 	$dump .= "'$ss->{NAME}'" ;
+	}
+	
+if($use_devel_size)
+	{
+	$dump .= " [" . total_size($ss) . " bytes]\n" ;
 	}
 	
 $dump .= "\n" ;
@@ -110,19 +124,19 @@ if($display_setup)
 				
 				if('Spreadsheet::Perl' eq ref $s)
 					{
-					return('HASH', undef, sort grep {! /DATA/} keys %$s) ;
+					return('HASH', undef, sort grep {! /CELLS/} keys %$s) ;
 					}
 					
 				return(Data::TreeDumper::DefaultNodesToDisplay($s)) ;
 				} ;
 		
-		$dump .= DumpTree($ss, 'Setup:', FILTER => $NoData, DISPLAY_ADDRESS => 0) ;
+		$dump .= DumpTree($ss, 'Setup:', FILTER => $NoData, DISPLAY_ADDRESS => 0, %$dtd_setup) ;
 		}
 	else
 		{
 		for my $key (sort keys %$ss)
 			{
-			next if $key =~ /^DATA$/ ;
+			next if $key =~ /^CELLS$/ ;
 			
 			$dump .= Data::Dumper->Dump([$ss->{$key}], [$key]);
 			}
@@ -184,7 +198,7 @@ if($use_data_treedumper)
 						
 						for my $dependent (keys %$s)
 							{
-							my ($spreadsheet, $cell, $name) = @{$s->{$dependent}{DATA}} ;
+							my ($spreadsheet, $cell, $name) = @{$s->{$dependent}{CELLS}} ;
 							push @dependents, "$name!$cell" ;
 							
 							if($ss->{DEBUG}{DEPENDENT})
@@ -207,13 +221,22 @@ if($use_data_treedumper)
 					
 				return(Data::TreeDumper::DefaultNodesToDisplay($s)) ;
 				} ;
+				
+	my $tdt_dump .= DumpTree
+			(
+			  $ss->{CELLS}
+			, "Cells:"
+			, DISPLAY_ADDRESS        => 0
+			, FILTER                 => $NoDependentData
+			, %cell_filter
+			, %$dtd_setup
+			) ;
 			
-	$dump .= DumpTree($ss->{DATA}, "Cells:", , DISPLAY_ADDRESS => 0, FILTER => $NoDependentData, %cell_filter) ;
-	#~ $dump .= DumpTree($ss->{DATA}, "'Cells':") ;
+	$dump .= $tdt_dump ;
 	}
 else
 	{
-	$dump .= Data::Dumper->Dump([$ss->{DATA}], ['Cells']) ;
+	$dump .= Data::Dumper->Dump([$ss->{CELLS}], ['Cells']) ;
 	}
 	
 $dump .= "\n$ss " ;

@@ -19,7 +19,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-our @EXPORT = qw( SetRangeName SetCellName SortCells) ;
+#~ our @EXPORT = qw( SetRangeName SetCellName SortCells) ;
+our @EXPORT ;
+push @EXPORT, qw( SetRangeName SetCellName SortCells ConvertAdressToNumeric) ;
+
 our $VERSION = '0.01' ;
 
 use Spreadsheet::ConvertAA ;
