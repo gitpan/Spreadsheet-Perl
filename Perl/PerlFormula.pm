@@ -29,7 +29,26 @@ our $VERSION = '0.01' ;
 
 sub PerlFormula
 {
-return bless [\&GeneratePerlFormulaSub, @_], "Spreadsheet::Perl::PerlFormula" ;
+my $self = shift ;
+
+if(defined $self && __PACKAGE__ eq ref $self)
+	{
+	my %formulas= @_ ;
+	
+	while(my ($address, $formula) = each %formulas)
+		{
+		$self->Set
+			(
+			  $address
+			, bless [\&GeneratePerlFormulaSub, $formula], "Spreadsheet::Perl::PerlFormula"
+			) ;
+		}
+	}
+else	
+	{
+	unshift @_, $self ;
+	return bless [\&GeneratePerlFormulaSub, @_], "Spreadsheet::Perl::PerlFormula" ;
+	}
 }
 
 *PF = \&PerlFormula ;
@@ -50,9 +69,6 @@ if($formula =~ /[A-Z]+\]?\[?[0-9]+/)
 	my ($column_offset, $row_offset) = $ss->GetCellsOffset("$column$row", $current_cell_address) ;
 	
 	$formula =~ s/(\[?[A-Z]+\]?\[?[0-9]+\]?(:\[?[A-Z]+\]?\[?[0-9]+\]?)?)/$ss->OffsetAddress($1, $column_offset, $row_offset)/eg ;
-	$formula =~ s/\$ss\{('|")(.*?)}/\$ss->Get($1$2)/g ;
-	$formula =~ s/\$ss\{([^'"].*?)}/\$ss->Get("$1")/g ;
-	
 	print $dh "=> $formula\n" if $ss->{DEBUG}{PRINT_FORMULA} ;
 	}
 
@@ -61,6 +77,8 @@ return
 	sub 
 		{ 
 		my $ss = shift ; 
+		tie my (%ss), $ss ; 
+		
 		my $cell = shift ;
 		
 		my $dh = $ss->{DEBUG}{ERROR_HANDLE} ;

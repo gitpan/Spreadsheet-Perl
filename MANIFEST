@@ -19,6 +19,7 @@ Perl/Lock.pm
 Perl/PerlFormula.pm
 Perl/QuerySet.pm
 Perl/RangeValues.pm
+Perl/ReadWrite.pm
 Perl/Reference.pm
 Perl/UserData.pm
 Perl/Validator.pm
@@ -40,11 +41,14 @@ tests/formula_relocating.pl
 tests/function_definition.pl
 tests/inter_spreadsheet.pl
 tests/name_and_lock.pl
+tests/prima.pl
 tests/query_set.pl
 tests/ref.pl
 tests/range_values.pl
+tests/read_write.pl
 tests/row_column_star.pl
 tests/sort.pl
+tests/ss_data.pl
 tests/ss_setup.pl
 tests/store_function.pl
 tests/store_on_fetch.pl

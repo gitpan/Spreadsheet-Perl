@@ -7,9 +7,8 @@ use Data::TreeDumper ;
 use Spreadsheet::Perl ;
 use Spreadsheet::Perl::Arithmetic ;
 
-tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
-my $ss = tied %ss ;
-
+my $ss = tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
+ 
 $ss{A0} = 'column 1' ;
 $ss{'@1'} = 'row 1' ; # or $ss{'0,1'} = 'row 1' ;
 

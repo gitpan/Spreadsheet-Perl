@@ -23,7 +23,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( Reset ) ;
 
-our $VERSION = '0.05' ;
+our $VERSION = '0.06' ;
 
 use Spreadsheet::Perl::Address ;
 use Spreadsheet::Perl::Cache ;
@@ -38,6 +38,7 @@ use Spreadsheet::Perl::Lock ;
 use Spreadsheet::Perl::QuerySet ;
 use Spreadsheet::Perl::Reference ;
 use Spreadsheet::Perl::RangeValues ;
+use Spreadsheet::Perl::ReadWrite ;
 use Spreadsheet::Perl::UserData ;
 use Spreadsheet::Perl::Validator ;
 
@@ -61,7 +62,9 @@ return
 				, NEED_UPDATE => "#need update"
 				}
 				
-	, CELLS                => {}
+	, DEPENDENT_STACK     => []
+	
+	, CELLS               => {}
 	) ;
 }
 
@@ -100,6 +103,8 @@ sub TIEHASH
 {
 my $class = shift ;
 
+return($class) unless '' eq ref $class ;
+
 my $self = 
 	{
 	  GetSpreadsheetDefaultData()
@@ -127,7 +132,10 @@ if($address =~ /(.*)\.(.+)/)
 #inter spreadsheet references
 my $original_address = $address ;
 my $ss_reference ;
-($ss_reference, $address) = $self->GetSpreadsheetReference($address) ;
+
+my ($cell_or_range, $is_cell, $start_cell, $end_cell) = $self->CanonizeAddress($address) ;
+
+($ss_reference, $address) = $self->GetSpreadsheetReference($cell_or_range) ;
 
 if(defined $ss_reference)
 	{
@@ -159,8 +167,6 @@ else
 	confess "Can't find Spreadsheet object for address '$address'.\n." ;
 	}
 
-my ($cell_or_range, $is_cell, $start_cell, $end_cell) = $self->CanonizeAddress($address) ;
-
 if($self->{DEBUG}{FETCH})
 	{
 	my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
@@ -175,7 +181,6 @@ if($self->{DEBUG}{FETCH})
 		}
 	}
 	
-# Set the value in the current spreadsheet
 if($is_cell)
 	{
 	my $value ;
@@ -337,28 +342,26 @@ if($is_cell)
 		}
 	else
 		{
-		$value = undef ;
-			
-		if(exists $self->{DEPENDENT_STACK} && @{$self->{DEPENDENT_STACK}})
+		if(@{$self->{DEPENDENT_STACK}})
 			{
 			$self->{CELLS}{$start_cell} = {} ; # create the cell to hold the dependent
 			$self->FindDependent($self->{CELLS}{$start_cell}, $start_cell) ;
-			}
 		
-		if($self->{DEBUG}{DEPENDENT_STACK})
-			{
-			push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
-			
-			my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-			print $dh $self->DumpDependentStack() ;
-			
-			pop @{$self->{DEPENDENT_STACK}} ;
+			if($self->{DEBUG}{DEPENDENT_STACK})
+				{
+				push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
+				
+				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+				print $dh $self->DumpDependentStack() ;
+				
+				pop @{$self->{DEPENDENT_STACK}} ;
+				}
 			}
 			
 		# handle headers and default values
 		my ($column, $row) = ConvertAdressToNumeric($start_cell) ;
 		
-		if($column == 0 && $row == 0)
+		if($row == 0)
 			{
 			$value = ToAA($column) ;
 			}
@@ -370,14 +373,7 @@ if($is_cell)
 				}
 			else
 				{
-				if($row == 0)
-					{
-					$value = ToAA($column) ;
-					}
-				else
-					{
-					# default value
-					}
+				$value = undef ;
 				}
 			}
 		}
@@ -432,7 +428,10 @@ my $value   = shift ;
 # inter spreadsheets references
 my $original_address = $address ;
 my $ss_reference ;
-($ss_reference, $address) = $self->GetSpreadsheetReference($address) ;
+
+my ($cell_or_range, $is_cell, $start_cell, $end_cell) = $self->CanonizeAddress($address) ;
+
+($ss_reference, $address) = $self->GetSpreadsheetReference($cell_or_range) ;
 
 if(defined $ss_reference)
 	{
@@ -811,13 +810,12 @@ Spreadsheet::Perl - Pure Perl implementation of a spreadsheet engine
   use Spreadsheet::Perl;
   use Spreadsheet::Perl::Arithmetic ;
 
-  tie my %ss, "Spreadsheet::Perl"
-  my $ss = tied %ss ;
+  my $ss = tie my %ss, "Spreadsheet::Perl"
 
   $ss->SetNames("TEST_RANGE" => 'A5:B8') ;
   $ss{TEST_RANGE} = '7' ;
   
-  $ss->DefineFunction('AddOne', \&AddOne) ;
+  DefineSpreadsheetFunction('AddOne', \&AddOne) ;
   
   $ss{A3} = PerlFormula('$ss->AddOne("A5") + $ss{A5}') ;
   print "A3 formula => " . $ss->GetFormulaText('A3') . "\n" ;
@@ -832,9 +830,9 @@ Spreadsheet::Perl - Pure Perl implementation of a spreadsheet engine
 
 =head1 DESCRIPTION
 
-Spreadsheet::Perl is a pure Perl implementation of a spreadsheet. 
+Spreadsheet::Perl is a pure Perl implementation of a spreadsheet engine. 
 
-Spreadsheet::Perl is minimal in size but can do the the following:
+Spreadsheet::Perl is quite small but can do the the following:
 
 =over 2
 
@@ -862,7 +860,7 @@ Spreadsheet::Perl is minimal in size but can do the the following:
 
 =item * has a simple architecture for debugging (and some flags are already implemented)
 
-=item * can read it's data from a file
+=item * can read its data from a file
 
 =item * supports cell naming
 
@@ -885,6 +883,8 @@ Spreadsheet::Perl is minimal in size but can do the the following:
 =item * Relative and fixed cell addresses
 
 =item * slice access
+
+=item * Perl variable mapping to a cell
 
 =item * some debugging tool (dump, dump table, dump to HTML, formula stack trace, ...)
 
@@ -1000,7 +1000,7 @@ spreadsheet functions are accessed through the tied object.
 		  , DEBUG => { PRINT_FORMULA => 1} ;
 
 
-=head2 reading data from a file
+=head2 reading, cell only,  data from a file
 
   <- start of ss_setup.pl ->
   # how to compute the data
@@ -1065,12 +1065,36 @@ Generates:
   Spreadsheet::Perl=HASH(0x825540c) 'TEST' dump end
   ------------------------------------------------------------
 
+=head2 reading and writing  a spreadsheet from a file
+
+Version 0.06 has, prototype, functionality to read and write spreadsheets.
+
+  use Spreadsheet::Perl ;
+  
+  my $ss = tie my %ss, "Spreadsheet::Perl" ;
+
+  $ss->Read('ss_data.pl') ;
+
+  print $ss->DumpTable() ;
+  
+  $ss->Write('generated_ss_data.pl') ;
+
+  undef $ss ;
+  untie %ss ;
+  
+  $ss = tie %ss, "Spreadsheet::Perl" ;
+  $ss->Read('generated_ss_data.pl') ;
+  
+  print $ss->DumpTable() ;
+
+You can find a small example in I<tests/read_write.>. See also: L<Function definition> bellow.
+
 =head2 Dumping a table
 
 Håkon Nessjøen (author of Text::ASCIITable) was nice enough to contribute a module to dump 
 the spreadsheet in table form.
 
-The functionality can be access through two function names. I<DumpTable> (an alias) and I<GenerateASCIITable>.
+The functionality can be access through two, equivalent, function names: I<DumpTable> (an alias) and I<GenerateASCIITable>.
 The functions take the following arguments:
 
 =over 2
@@ -1184,13 +1208,13 @@ If there is no screen width available (redirecting to a file for example) B<78> 
   '--------------------------------------------
   'TEST' 1/4.
   
-  .--------------------------------------------
-  | @ | I | J | K | L | M | N | O | P | Q | R |
-  |============================================
-  | 4 |   |   |   |   |   |   |   |   |   |   |
-  |---+---+---+---+---+---+---+---+---+---+---+
-  | 5 |   |   |   |   |   |   |   |   |   |   |
-  '--------------------------------------------
+  .--------------------------------
+  | @ | I | J | K | L | M | N | O |
+  |================================
+  | 4 |   |   |   |   |   |   |   |
+  |---+---+---+---+---+---+---+---|
+  | 5 |   |   |   |   |   |   |   |
+  '--------------------------------
   'TEST' 2/4.
 
   ...
@@ -1201,7 +1225,7 @@ See B<Text::ASCIITable>.
 
 =head1 CELL and RANGE: ADDRESSING, NAMING
 
-Cells are index  with a scheme I call baseAA1 (please let me know if it has a better name).
+Cells are index  with a scheme I call baseAA (please let me know if it has a better name).
 A cell address is a combination of letters and a figure, ex: 'A1', 'BB45', 'ABDE15'.
 
 BaseAA figures match /[A-Z]{1,4}/. see B<Spreadsheet::ConvertAA>. There is no limit on the numeric figure.
@@ -1241,8 +1265,7 @@ no zeros.
 
 It is possible to give a name to a cell or to a range: 
 
-  tie my %ss, "Spreadsheet::Perl" ;
-  my $ss = tied %ss ;
+  my $ss = tie my %ss, "Spreadsheet::Perl" ;
   @ss{'A1', 'A2'} = ('cell A1', 'cell A2') ;
   
   $ss->SetCellName("FIRST", "A1") ;
@@ -1253,7 +1276,7 @@ It is possible to give a name to a cell or to a range:
 
 Names must be upper case.
 
-=head1 NAMING ROW AND COLUMN HEADERS
+=head1 LABELING ROW AND COLUMN HEADERS
 
 The spread cells are indexed from '1,1' which is 'A1' in baseAA. The column headers start at
 'A0' to 'ZZZZ0'. The row header start at '0,1' to '0,n'. You can either use the previous notation
@@ -1363,17 +1386,40 @@ DefineSpreadsheetFunction takes the following parameters:
 
 =item 1 - A function name
 
-=item 2 - A sub reference
+=item 2 - A sub reference or undef if item 3 is defined
+
+=item 3 - A text representation for the function (for file serialization)
+
+=item 2 - A module name (for file serialization)
 
 =back
 
-The sub will is passed a reference to the spreadsheet object as first argument. The other argument are those you
+The sub will be passed a reference to the spreadsheet object as first argument. The other argument are those you
 pass to the function in your formula.
 
 =head3 Function modules
 
-if you implement more than a few formula functions, you may want to move those functions into a perl module.
-Contact the author for help or look at Spreadsheet::Perl::Arithmetics for a template.
+If you implement more than a few formula functions, you may want to move those functions into a perl module.
+"use" Spreadsheet::Perl in your module and register your functions through B<DefineSpreadsheetFunction>.
+
+  package MyPackageName ;
+  
+  sub DoSomething{}
+  
+  AddSpreadsheetFunction('DoSomething', \&DoSomething, undef, __PACKAGE__) ;
+  
+Later in a script:
+
+  use Spreadsheet::Perl ;
+  use MyPackageName ;
+  
+  # DoSomething is now available within formulas
+  $ss{A1} = PF('$ss->DoSomething('A2:A3', 'arg2', 'arg3')') ;
+  ...
+  $ss->Write('somefile.pl') ; # serializes the formula and "MyPackageName" module name in the file.
+  
+The saved file will now "use" MyPackageName automaticaly when you read the file.
+
 
 B<Please contribute your functions to Spreadsheet::Perl>.
 
@@ -1398,7 +1444,7 @@ to a cell value (see bellow for the one exception). Attributes have different fo
 
 =head2 Setting a value
 
-Anything that can be assigned to a perl variable can be assigned to a cell with the exception of object rooted at
+Anything that can be assigned to a perl variable can be assigned to a cell with the exception of object rooted in
 "Spreadsheet::Perl" which are reserved and carry a special meaning.
 
   $ss{A1} = 458_627 ;
@@ -1469,6 +1515,18 @@ B<PerlFormula> and B<PF> (an alias to PerlFormula) take a string as argument. Th
 
   $ss{'A1'} = PerlFormula('ANY VALID PERL CODE') ;
 
+It is also possible to use B<PerlFormula> as a member function and define multiple formulas in one call
+
+  $ss->PerlFormula
+  	(
+  	  'B1'    => '$ss{A1} + $ss{A2}'
+  	, 'B2'    => '$ss{A4} + $ss{A3}'
+  	, 'B3:B5' => '$ss{A4} + $ss{A3}'
+  	) ;
+  	
+  $ss->{DEBUG}{INLINE_INFORMATION}++ ; # show the formulas in the table dump
+  print $ss->DumpTable() ;:
+
 =head5 Variables available in a formula
 
 The following variables are available in the formula:
@@ -1476,6 +1534,8 @@ The following variables are available in the formula:
 =over 2
 
 =item * $ss, a spreadsheet object reference
+
+=item * %ss, a hash tied to the spreadsheet object
 
 =item * $cell, the address of the cell for which the formula is evaluated
 
@@ -1514,9 +1574,15 @@ address element can be protected by square brackets.
 
 =head4 common format
 
-This is the format accepted by excel and gnumeric. There is no implementation of this format at this time.
+This is the format accepted by excel and gnumeric. I will _not_ implement that format because:
 
-The common format will be accessed through B<Formula> and handle address offsetting as the native format.
+  =SUM(IF(A2:A20=A2,IF(B2:B20=38,1,0)))
+
+is about the ugliest a formula language can get. Is all this user friendly syntax only because
+someone thought it was too difficult to present a mutiline editor to the end user?
+  
+If Someone feels that the common format (or any other language) is more "appropriate" than Perl and 
+contributes a translator, I'll be happy to add it to the distribution.
 
 =head3 RangeValues
 
@@ -1696,15 +1762,15 @@ You can find a typical implementation in the examples.s
 =head2 Perl scalar mapping
 
 Few problems fit the two dimensional mapping spreadsheets use. For a given project, you may already have data structure 
-that you want to perform calculation on (thought spreadsheet). Mapping the domain structure and back is time consuming.
-Even if that process cannot be eliminated, B<Spreadsheet::Perl> can do half the job. Here is an example:
+that you want to perform calculation on (thought spreadsheet). Mapping from the domain structure and back is time consuming,
+error prone and borring. Even if that process cannot be eliminated, B<Spreadsheet::Perl> can do half the job. Here is an example:
 
   my $variable = 25 ;
   
   $ss{A1} = Ref('description', \$variable) ;
   $ss{A2} = PerlFormula('$ss{A1}') ;
   
-  print "$ss{A1} $ss{A2}\n" ;
+  print "$ss{A1} $ss{A2}\n" ; # fetch the data from the scalar variable
   
   $ss{A1} = 52 ; # set the scalar
     
@@ -1759,7 +1825,7 @@ my ($value1, $value2) = @ss{'A1', 'A2'} ;
 
 I you want to read all the values contained in a range, use the following syntax:
 
-  m $values = $ss{'A1:A10'} ;
+  my $values = $ss{'A1:A10'} ;
 
 An array reference is returned. It contains the values ordered by rows first then by columns.
 
@@ -1887,7 +1953,7 @@ Here are some of the things that I find missing, this doesn't mean all are good 
 
 =over 2
 
-=item * more documentation, more tests
+=item * more tests, automatic tests. Test on Win32 platform.
 
 =item * perl debugger support
 
@@ -1899,15 +1965,13 @@ Here are some of the things that I find missing, this doesn't mean all are good 
 
 =item * Arithmetic functions (only Sum is implemented), statistic functions
 
-=item * interface to the Inline module so you can write real fast functions in C
+=item * example of interface to the Inline module so you can write real fast functions in C
 
 =item * printing, exporting
 
 =item * importing from other spreadsheets
 
-=item * more serious file reading and file writing
-
-=item * complex stuff (fixing one could fix the other)
+=item * complex stuff (I am working on this but Gnumeric and excel do diffrent things)
 
 =over 4
 
@@ -1919,7 +1983,7 @@ Here are some of the things that I find missing, this doesn't mean all are good 
 
 =back
 
-=item * a GUI (curses, tk, wxWindows, cgi) would be great!
+=item * a GUI (curses, tk, wxWindows, cgi, Prima) would be great!
 
 =item * a nice logo :-)
 
@@ -1946,6 +2010,12 @@ B<Spreadsheet::ConvertAA>.
 B<Data::TreeDumper>.
 
 B<Text::ASCIITable>.
+
+Some examples need these:
+
+B<Prima>.
+
+B<Data::Table>.
 
 =cut
 

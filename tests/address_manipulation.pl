@@ -5,8 +5,7 @@ use warnings ;
 
 use Spreadsheet::Perl ; 
 
-tie my %ss, "Spreadsheet::Perl" ;
-my $ss = tied %ss ;
+my $ss = tie my %ss, "Spreadsheet::Perl" ;
 
 for
 	(

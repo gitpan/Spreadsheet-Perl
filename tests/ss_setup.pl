@@ -7,6 +7,10 @@ my $address = shift ;
 return($ss->Get($address) + 1) ;
 }
 
+#~ use Data::Dumper ;
+#~ $Data::Dumper::Deparse = 1 ;
+#~ print Dumper(\&AddOne) ;
+
 DefineSpreadsheetFunction('AddOne', \&AddOne) ;
 
 sub OneMillion

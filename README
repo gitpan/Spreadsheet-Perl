@@ -1,4 +1,4 @@
-Spreadsheet/Perl version 0.05
+Spreadsheet/Perl version 0.06
 =============================
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet engine.
@@ -7,26 +7,29 @@ Please look at the man page for more information or the online documentation @ h
 
 In this release:
 
-	ADDED: some interesting link in the documentation
-	ADDED: Table dump thanks to Håkon Nessjøen
-	ADDED: page width support
-	ADDED: {DEBUG}{INLINE_INFORMATION}
-	CHANGED: Fetch and Store subs must have a name
-	CHANGED: Ref must have a name
-	ADDED: possibility to name headers
-	ADDED: StoreOnFetch
-	ADDED: row header displayed for each page
-	Change: different page count footer
+	CHANGED: using re-tie thanks to Brian McCauley
+	CHANGED: DefineSpreadsheetFunction implementation, it now takes perl code for serialization
+	ADDED: prototype Read and Write functions
+	CHANGED: Function modules can now be in their own package
+	ADDED: DefineSpreadsheetFunction  takes module name for serialization
+	ADDED: PerlFormula also works as a member function and accepts multiple formulas
+	CHANGED: GetSpreadsheetReference must be given a Canonized address
+	ADDED: prototype GUI using Prima
 
-TODO
+Ongoing:
+- The GUI prototype is a very simple application. Thanks to Dmtry for his help.
+- Deletion/insertion/sorting is going slowly.
+- Common format parser proposition by a contributor will be looked at soon.
+
+TODO:
 
 There is still lots to do but the basics are there.
 
-Please Contribute to this project.
+This project needs contributors, feel free to contact me.
 
 BUGS
 
-Plenty, I just don't know where they are.
+Plenty, I just don't know where they are :-)
 
 INSTALLATION
 

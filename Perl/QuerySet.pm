@@ -190,21 +190,42 @@ return
 
 sub DefineSpreadsheetFunction
 {
-my ($name, $function_ref) = @_ ;
+my ($name, $function_ref, $function_body, $module_name) = @_ ;
 
 confess "Expecting a name!" unless '' eq ref $name && defined $name && $name ne '' ;
-
-#~ my ($package, $filename, $line) = caller ;
+confess "Expecting a function reference or a function body!" unless defined $function_ref || defined $function_body ;
+confess "Expecting a function reference _or_ a function body!" if defined $function_ref && defined $function_body ;
 
 #~ *$name = sub {$function_ref->(@_) ;} ; # this has perl generate a <warning but in the wrong context
 
 no strict ;
-if(eval "*Spreadsheet::Perl::$name\{CODE}")
+if(eval "*$name\{CODE}")
 	{
 	warn "Subroutine Spreadsheet::Perl::$name redefined at @{[join ':', caller()]}\n" ;
+	undef &${name} ;
 	}
 	
-*$name = $function_ref ; # this doesn't generate a warning but still works
+if(defined $function_body && ! defined $function_ref)
+	{
+	$function_body =~ s/\n+$// ;
+	$function_ref = eval $function_body ;
+	}
+	
+if($@)
+	{
+	confess $@  ;
+	}
+else
+	{
+	*$name = $function_ref ;
+	
+	$Spreadsheet::Perl::defined_functions{$name} = {
+							  FUNCTION_REF => $function_ref
+							, FUNCTION_BODY => $function_body
+							, MODULE_NAME => $module_name
+							, DEFINED_AT => join('::', caller())
+							} ;
+	}
 }
 
 #-------------------------------------------------------------------------------
@@ -309,7 +330,6 @@ Spreadsheet::Perl::QuerySet - Functions at the spreadsheet level
   SetName
   GetName
   AddSpreadsheet
-  GetSpreadsheetReference
   
   GetCellList
   GetLastIndexes

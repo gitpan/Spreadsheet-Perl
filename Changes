@@ -46,3 +46,16 @@ Revision history for Perl extension Spreadsheet::Perl.
 	ADDED: StoreOnFetch
 	ADDED: row header displayed for each page
 	Change: different page count footer
+
+0.06  Sun Feb  8 00:00:00 2004
+	CHANGED: using re-tie thanks to Brian McCauley
+	CHANGED: DefineSpreadsheetFunction implementation, it now takes perl code for serialization
+	ADDED: prototype Read and Write functions
+	CHANGED: Function modules can now be in their own package
+	ADDED: DefineSpreadsheetFunction  takes module name for serialization
+	ADDED: PerlFormula also works as a member function and accepts multiple formulas
+	CHANGED: GetSpreadsheetReference must be given a Canonized address
+	ADDED: prototype GUI using Prima
+	
+	
+	

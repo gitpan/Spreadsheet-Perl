@@ -77,7 +77,7 @@ else
 		{
 		if($spreadsheet ne '' && $named_cell_range =~ /^([A-Z_]+!)/)
 			{
-			confess "adress '$address' contains a spreadsheeet name as do componants of address" ;
+			confess "adress '$address' contains a spreadsheeet name as do componants of address!" ;
 			}
 			
 		($start_cell, $end_cell) = $named_cell_range =~ /^(.+):(.+)$/ ;
@@ -378,11 +378,11 @@ return(@addresses) ;
 sub GetSpreadsheetReference
 {
 my $self = shift ;
-my $address = shift ;
+my $address = shift ; #! must be canonized
 
-my ($canonized_address, $is_cell, $start_cell, $end_cell, $range) = $self->CanonizeAddress($address) ;
+#~ my ($canonized_address, $is_cell, $start_cell, $end_cell, $range) = $self->CanonizeAddress($address) ;
 
-if($canonized_address=~ /^([A-Z]+)!(.+)/)
+if($address=~ /^([A-Z]+)!(.+)/)
 	{
 	if(defined $self->{NAME} && $self->{NAME} eq $1)
 		{
@@ -396,13 +396,13 @@ if($canonized_address=~ /^([A-Z]+)!(.+)/)
 			}
 		else
 			{
-			return(undef, $canonized_address) ;
+			return(undef, $address) ;
 			}
 		}
 	}
 else
 	{
-	return($self, $canonized_address) ;
+	return($self, $address) ;
 	}
 }
 

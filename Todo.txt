@@ -1,10 +1,11 @@
 Spreadsheet::Perl
 =================
 
-#Fix the name export problem
+!!!!! accept x\s+,\s+y as address
 
--a column/row stores default value for unset cells ?
--spreadsheet (0,0) stores default value for unset cells ?
+-a column/row stores default value for unset cells ? Use Fetch callback
+-spreadsheet (0,0) stores default value for unset cells ? Use Fetch callback
+- do we need delete callback for DBI?
 
 R1C1 reference in formulas => $ss{$cell - "1,1"}
 
@@ -13,28 +14,39 @@ Deletion of rows and columns (=> formulas !!)
 Sorting (=> formulas !!)
 	option to invalidate all formulas containing a ref to the deleted row ...
 
+Delete and insert row should return a list a of cells which formula is changed and/or might return something diffrent
 
-Symbolic formulas => translator?
-Symbolic addressing? partly done through perl.
+write should serialize using multilines if formulas are so written.
+
+Generate graphs, pies, ..
 
 DBI interface
 
-function to list the available spreadsheet functions and where they are comming from ?
-
+Composite initialisation type? Composite(PerlFormula(), 7, Format(), ....) ;
 Clear(FORMULA, VALUE, FORMAT) ;
-Read/Write
+
+perl debugger support
+dependency graph
+
+#Fix the name export problem
+
+#Symbolic formulas => translator? or simpy refuse it
+#Symbolic addressing? partly done through perl.
+
+#function to list the available spreadsheet functions and where they are comming from ?
+#keep the list of added functions
+#AddFunction can take a text rep for the function
+#Read/Write
 
 #Fetch and store sub should have symbolic names that can be used when debugging
 #DEBUG::INLINE_INFORMATION
 
-Composite initialisation type?
-
-$ss->Formula( F1, F2, ...) ;
-$ss->{DEBUG}{FETCH} = sub
+#$ss->Formula( F1, F2, ...) ;
+#$ss->{DEBUG}{FETCH} = sub. See {DEBUG}{FETCH_TRIGGER}
 
 #dump to screen in cell form
 #handle page width
-redraw the row header if multi page
+#redraw the row header if multi page
 
 #dump to html table
 #Autofill example
