@@ -1,0 +1,84 @@
+Spreadsheet::Perl
+=================
+
+Fix the name export problem
+
+-a column/row stores default value for unset cells ?
+-spreadsheet (0,0) stores default value for unset cells ?
+
+R1C1 reference in formulas => $ss{$cell - "1,1"}
+Insertion of rows and columns (=> formulas !!)
+Deletion of rows and columns (=> formulas !!)
+Sorting (=> formulas !!)
+
+Perl debugger support: breakpoint ...
+
+$ss->{DEBUG}{FETCH_CELL}{A1}++ /= sub ; # display message when 'A1' is fetched
+
+AddFormat should be deep
+
+Find, FindAndReplace
+
+#Let range share validators
+#Range fillers
+
+#a range is a spreadsheet (?) => fetching a range returns a list with alll the values
+
+#inter spreadsheet references ? Spreadsheets have names: 'main:A3:B7'
+	#$ss->AddSpreadsheet('name', reference_to_object) ;
+	#$ss->SetName, $ss->GetName
+	#sorting of cell names
+	
+#inter spreadsheets dependencies ??
+#inter spreadsheets cycles ?? 
+
+#Relative references : A1 and Absolute references : $A$1 in formulas
+#	=> absolute is '[A][1]'
+
+#F:OffsetFormula, GetAddressOffset  (x,y)
+#F:Copy, Copy(address/range) / Paste => easily done through hash slices
+
+modules: DBI URL-GET statistique ....
+modules: printing html-generation ImportExcel ...
+modules: autofill wizards ...
+
+#Fetchers => sub
+#Input validator => Add by name (lock is one)
+
+#Spreadsheet::Perl::Arithmetic::Sum ...
+#Spreadsheet::Perl::Arithmetic::Sum should take a list of ranges
+
+#row 0 is the header row
+
+#formulas are pure perl
+#formula defintions
+
+#function definitions
+
+#constructor arguments
+
+#setting through a data struct
+#dump
+
+#each cell is a hash internaly
+
+#named cell and range
+
+#locking per cell
+
+#format
+
+#AUTOCALC
+
+#no cycles are allowed (we can use the new cyclic module)
+#compute cells when needed only
+#dependencies changes mark the cell as needing update
+
+#sorting of cell names
+
+#F:GetCellList
+#F:GetLastIndexes
+
+
+
+
