@@ -225,7 +225,7 @@ if($use_data_treedumper)
 	my $tdt_dump .= DumpTree
 			(
 			  $ss->{CELLS}
-			, "Cells:"
+			, "Cells (" . scalar(keys %{$ss->{CELLS}}) . "):"
 			, DISPLAY_ADDRESS        => 0
 			, FILTER                 => $NoDependentData
 			, %cell_filter

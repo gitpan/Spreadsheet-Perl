@@ -30,12 +30,16 @@ our $VERSION = '0.01' ;
 sub Lock
 {
 my $self = shift ;
-my $address = shift ;
 my $lock = shift ;                    
 
-$lock = $address unless $self->IsAddress($address) ;
-
-$self->{LOCKED} = $lock ;
+if(defined $lock)
+	{
+	$self->{LOCKED} = $lock ;
+	}
+else
+	{
+	$self->{LOCKED} = 1 ;
+	}
 }
 
 #-------------------------------------------------------------------------------
@@ -48,7 +52,14 @@ my $lock = shift ;
 
 for my $current_address ($self->GetAddressList($address))
 	{
-	$self->{CELLS}{$current_address}{LOCKED} = $lock ;
+	if(defined $lock)
+		{
+		$self->{CELLS}{$current_address}{LOCKED} = $lock ;
+		}
+	else
+		{
+		$self->{CELLS}{$current_address}{LOCKED} = 1 ;
+		}
 	}
 }
 

@@ -65,7 +65,7 @@ Spreadsheet::Perl::Arithmetic - Arithmetic functions for Spreadsheet::Perl
 =head1 SYNOPSIS
 
   my $sum = $ss->Sum('A5:B8') ;
-  $ss{A5} = Formula('$ss->Sum('A5:B8')') ;
+  $ss{A5} = PerlFormula('$ss->Sum('A5:B8')') ;
   
 =head1 DESCRIPTION
 

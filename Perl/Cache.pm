@@ -29,14 +29,32 @@ our $VERSION = '0.01' ;
 
 sub Cache
 {
-my $true = 1 ;
-return bless \$true, "Spreadsheet::Perl::Cache" ;
+my $self = shift ;
+
+if(defined $self && __PACKAGE__ eq ref $self)
+	{
+	$self->{CACHE} = 1 ;
+	}
+else	
+	{
+	my $true = 1 ;
+	return bless \$true, "Spreadsheet::Perl::Cache" ;
+	}
 }
 
 sub NoCache
 {
-my $false= 0 ;
-return bless \$false, "Spreadsheet::Perl::Cache" ;
+my $self = shift ;
+
+if(defined $self && __PACKAGE__ eq ref $self)
+	{
+	$self->{CACHE} = 0 ;
+	}
+else	
+	{
+	my $false= 0 ;
+	return bless \$false, "Spreadsheet::Perl::Cache" ;
+	}
 }
 
 #-------------------------------------------------------------------------------
@@ -46,7 +64,7 @@ return bless \$false, "Spreadsheet::Perl::Cache" ;
 __END__
 =head1 NAME
 
-Spreadsheet::Perl::Cache- Cell value function support for Spreadsheet::Perl
+Spreadsheet::Perl::Cache- Cell caching support for Spreadsheet::Perl
 
 =head1 SYNOPSIS
 

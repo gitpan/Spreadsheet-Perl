@@ -16,4 +16,22 @@ Revision history for Perl extension Spreadsheet::Perl.
 	FIXED: Cleaned up the tests
 	ADDED: worked on the documentation
 	
+0.04  Mon Jan  12 23:00:00 2004
+	CHANGED: rewrote Address.pm
+	FIXED: CanonizeAddress does a real canonization
+	ADDED: almost all functions ready to take a canonized name with spreadsheet
+	CHANGED: replaced SetCellNAme and SetRangeName by SetNames
+	ADDED: NoCache available for whole spreadsheet
+	ADDED: Ref
+	ADDED: '*' adressing but wait till I understand the semantic better to turn it on
+	ADDED: spreadsheet REF, takes multiple cells use a single sub
+	FIXED: AUTOCALC
+	CHANGED: Renamed Formula to PerlFormula
+	ADDED: finished he first version of the documentation
+	ADDED: HTML output
+	FIXED: error in formula address handling
+	ADDED: perl warning are displayed with spreadsheet context when in formula
+	FIXED: Missed a pop in the dependency stack
+	CHANGED: documentation so do 'setup.pl' shows error handling.
+	ADDED: finished he first version of the documentation
 	

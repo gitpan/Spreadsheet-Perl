@@ -1,4 +1,14 @@
 
+sub AddOne
+{
+my $ss = shift ;
+my $address = shift ;
+
+return($ss->Get($address) + 1) ;
+}
+
+DefineSpreadsheetFunction('AddOne', \&AddOne) ;
+
 sub OneMillion
 {
 return(1_000_000) ;
@@ -9,8 +19,8 @@ return(1_000_000) ;
 #-----------------------------------------------------------------
 
 A1 => 120, 
-A2 => sub{1},
-A3 => Formula('$ss->Sum("A1:A2")'),
+A3 => PerlFormula('$ss->AddOne("A1") + $ss->Sum("A1:A2")'),
+A4 => sub{1},
 
 B1 => 3,
 

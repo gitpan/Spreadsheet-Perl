@@ -19,9 +19,9 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw( GetCellList GetLastCell  GetFormulaText DefineFunction ) ;
+#~ our @EXPORT = qw( GetCellList GetLastIndexes  GetFormulaText DefineFunction ) ;
 our @EXPORT ;
-push @EXPORT, qw( GetCellList GetLastCell  GetFormulaText DefineFunction ) ;
+push @EXPORT, qw( GetCellList GetLastIndexesGetFormulaText DefineSpreadsheetFunction ) ;
 
 our $VERSION = '0.01' ;
 
@@ -31,7 +31,15 @@ sub SetAutocalc
 {
 my $self = shift ;
 my $autocalc = shift ;
-$self->{AUTOCALC} = $autocalc ;
+
+if(defined $autocalc)
+	{
+	$self->{AUTOCALC} = $autocalc ;
+	}
+else
+	{
+	$self->{AUTOCALC} = 1 ;
+	}
 }
 
 #-------------------------------------------------------------------------------
@@ -47,8 +55,6 @@ return($self->{AUTOCALC}) ;
 sub Recalculate
 {
 my $self = shift ;
-
-local $self->{AUTOCALC} = 1 ;
 
 for my $cell_name (keys %{$self->{CELLS}})
 	{
@@ -80,37 +86,6 @@ if(exists $self->{OTHER_SPREADSHEETS}{$name})
 	}
 	
 $self->{OTHER_SPREADSHEETS}{$name} = $reference ;
-}
-
-#-------------------------------------------------------------------------------
-
-sub GetSpreadsheetReference
-{
-my $self = shift ;
-my $address = shift ;
-
-if($address =~ /^([A-Z]+)!(.+)/)
-	{
-	if(defined $self->{NAME} && $self->{NAME} eq $1)
-		{
-		return($self, $2) ;
-		}
-	else
-		{
-		if(exists $self->{OTHER_SPREADSHEETS}{$1})
-			{
-			return($self->{OTHER_SPREADSHEETS}{$1}, $2) ;
-			}
-		else
-			{
-			return(undef, $address) ;
-			}
-		}
-	}
-else
-	{
-	return($self, $address) ;
-	}
 }
 
 #-------------------------------------------------------------------------------
@@ -202,9 +177,12 @@ return
 
 #-------------------------------------------------------------------------------
 
-sub DefineFunction
+sub DefineSpreadsheetFunction
 {
-my ($ss, $name, $function_ref) = @_ ;
+my ($name, $function_ref) = @_ ;
+
+confess "Expecting a name!" unless '' eq ref $name && defined $name && $name ne '' ;
+
 #~ my ($package, $filename, $line) = caller ;
 
 #~ *$name = sub {$function_ref->(@_) ;} ; # this has perl generate a <warning but in the wrong context

@@ -36,7 +36,7 @@ return($sum) ;
 
 # dependency OK
 %ss = () ;
-$ss{A1} = FetchFunction(sub{return($ss->Get('A2') ) ;}) ;
+$ss{A1} = FetchFunction(sub{return($_[0]->Get('A2') ) ;}) ; # sub is passed $self && $cell_address
 $ss{A2} = 'hi' ;
 print $ss{A1} . "\n" ;
 $ss{A2} = 'there' ;

@@ -27,3 +27,13 @@ print $ss{A1} . "\n" ;
 $ss{A2} = 'there' ;
 print $ss{A1} . "\n" ; # Ok
 
+print "No cache at the spreadsheet level\n";
+%ss = () ;
+$ss->NoCache() ;
+
+$ss{A1} = FetchFunction(sub{ use Data::Dumper; return($ss->Dump()) ;}) ;
+$ss{A2} = 'hi' ;
+print "$ss{A1}\n" ;
+
+$ss{A2} = 'there' ;
+print $ss{A1} . "\n" ; 

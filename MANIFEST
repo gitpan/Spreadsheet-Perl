@@ -13,18 +13,23 @@ Perl/Devel.pm
 Perl/Format.pm
 Perl/Formula.pm
 Perl/Function.pm
+Perl/Html.pm
 Perl/Lock.pm
+Perl/PerlFormula.pm
 Perl/QuerySet.pm
 Perl/RangeValues.pm
+Perl/Reference.pm
 Perl/UserData.pm
 Perl/Validator.pm
 
 tests/address_manipulation.pl
 tests/attributes.pl
+tests/autofill.pl
 tests/cache.pl
 tests/create_setup.pl
 tests/cyclic_error.pl
 tests/debug.pl
+tests/dump_html.pl
 tests/fetch_function.pl
 tests/format.pl
 tests/formula.pl
@@ -33,7 +38,9 @@ tests/function_definition.pl
 tests/inter_spreadsheet.pl
 tests/name_and_lock.pl
 tests/query_set.pl
+tests/ref.pl
 tests/range_values.pl
+tests/row_column_star.pl
 tests/sort.pl
 tests/ss_setup.pl
 tests/store_function.pl

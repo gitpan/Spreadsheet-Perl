@@ -37,6 +37,7 @@ $ss{A1} = '' ;
 $ss{A1} = 1 ;
 $ss{A1} = {} ;
 $ss{A1} = 'hi' ;
+$ss{A1} = PerlFormula('$ss{A2}') ;
 
 $ss->{DEBUG}{VALIDATOR}++ ; # display calls to all validators in spreadsheet
 $ss{A1} = 0 ;

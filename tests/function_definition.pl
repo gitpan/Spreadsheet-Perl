@@ -9,10 +9,11 @@ tie my %ss, "Spreadsheet::Perl" ;
 my $ss = tied %ss ;
 @ss{'A1', 'A2'} = (1 .. 2) ;
 
-$ss->DefineFunction('AddOne', \&AddOne) ;
-$ss->DefineFunction('AddOne', \&AddOne) ; # generate a warning
+DefineSpreadsheetFunction('AddOne', \&AddOne) ;
+DefineSpreadsheetFunction('AddOne', \&AddOne) ; # generate a warning
 
-$ss{A3} = Formula('$ss->AddOne("A1") + $ss{A2}') ;
+$ss{A3} = PerlFormula('$ss->AddOne("A1") + $ss{A2}') ;
+print $ss->Dump() ;
 print "A3 => '@{[$ss->GetFormulaText('A3')]}' = $ss{A3}\n" ;
 
 #---------------------------------------------------

@@ -9,14 +9,14 @@ tie my %ss, "Spreadsheet::Perl" ;
 my $ss = tied %ss ;
 @ss{'A1', 'A2'} = ('cell A1', 'cell A2') ;
 
-$ss->SetCellName("First", "1,1") ;
+$ss->SetNames("FIRST", "1,1") ;
 print  $ss{First} . ' ' . $ss{A2} . "\n" ;
 
-$ss->SetCellName("first", "A1") ;
+$ss->SetNames("FIRST", "A1") ;
 print  $ss{first} . ' ' . $ss{A2} . "\n" ;
 
-$ss->SetRangeName("first_range", "A1:A2") ;
-print  "First range: @{$ss{first_range}}\n" ;
+$ss->SetNames("FIRST_RANGE", "A1:A2") ;
+print  "First range: @{$ss{FIRST_RANGE}}\n" ;
 
 $ss->Lock(1) ;
 $ss{A1} = 'ho' ;
@@ -30,7 +30,7 @@ $ss->LockRange("A1:B1", 1) ;
 $ss{A1} = 'ho' ;
 $ss{C1} = 'ho' ; # not locked
 
-$ss->SetRangeName("TestRange", 'A1:B5') ;
-$ss{TestRange} = '7' ;
+$ss->SetNames("TEST_RANGE", 'A1:B5') ;
+$ss{TEST_RANGE} = '7' ;
 
 print $ss->Dump() ;

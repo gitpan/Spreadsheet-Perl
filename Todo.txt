@@ -7,11 +7,44 @@ Fix the name export problem
 -spreadsheet (0,0) stores default value for unset cells ?
 
 R1C1 reference in formulas => $ss{$cell - "1,1"}
+
 Insertion of rows and columns (=> formulas !!)
 Deletion of rows and columns (=> formulas !!)
 Sorting (=> formulas !!)
 
-Find, FindAndReplace
+
+DBI interface
+
+Clear(FORMULA, VALUE, FORMAT) ;
+Read/Write
+
+Composite initialisation type?
+dump to screen in cell form
+
+$ss->Formula( F1, F2, ...) ;
+$ss->{DEBUG}{FETCH} = sub
+
+#dump to html table
+#Autofill example
+#RE-think AUTOCALC!
+
+#one naming function for range and cell (recursive within call)
+#DefineSpreadsheetFunction, remove object function
+#No cache at spreadsheet level
+#Ref RefNoCache
+#run the formulas in script namespace ? => No
+range limit ('B*'), what are the semantics of '*'?
+
+#Find
+[addresses] = Find(regexes and/or subs, range[s]),
+@adresses = map{$_->[0] ;}
+		grep{test($_->[1])}
+			map{[$_, $ss->Get($_)]} $ss->GetAddressList(@ranges) ;
+			
+@values = grep{test($_) ;} map{$ss->Get($_)} $ss->GetAddressList(@ranges) ;
+
+#Replace
+scalar = FindAndReplace(sub, ranges)
 
 Perl debugger support: breakpoint ...
 

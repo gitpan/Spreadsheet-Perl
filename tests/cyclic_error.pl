@@ -15,7 +15,7 @@ $ss->{DEBUG}{SUB}++ ;
 
 #~ # cyclic error
 $ss->{DEBUG}{DEFINED_AT}++ ;
-$ss{'A1:A5'} = Formula('$ss{"A2"}') ;
+$ss{'A1:A5'} = PerlFormula('$ss{"A2"}') ;
 $ss{A6} = Formula('$ss{A1}') ;
 print "$ss{A1}\n" ;
 

@@ -8,7 +8,7 @@ use Spreadsheet::Perl ;
 tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
 my $ss = tied %ss ;
 
-$ss{'A1:A4'} = Formula('$ss{A5}') ;
+$ss{'A1:A4'} = PerlFormula('$ss{A5}') ;
 $ss{C3}++ ;
 
 print "Cells: " . (join " - ", $ss->GetCellList()) . "\n" ;
@@ -19,7 +19,7 @@ print $ss->GetCellsToUpdateDump() ;
 
 print $ss->Dump() ;
 
-#errors
+# generate errors 
 #~ $ss->Reset(NAME => 'NEW_TEST') ;
 #~ $ss->Reset({NAME => 'NEW_TEST'}, A1 => {VALUE => 0}) ;
 

@@ -13,7 +13,7 @@ my $ss = tied %ss ;
 	(
 	  A1 => 1
 	, A2 => FetchFunction(sub{1})
-	, A3 => Formula('$ss->Sum("A1:A2")') 
+	, A3 => PerlFormula('$ss->Sum("A1:A2")') 
 	
 	, B1 => 3
 	, c2 => "hi there"
@@ -22,7 +22,8 @@ my $ss = tied %ss ;
 print $ss->Dump() ;
 print "\$ss{A3} = $ss{A3}\n" ;
 
-%ss = do "ss_setup.pl" ;
+%ss = do "ss_setup.pl" or confess("Couldn't evaluate setup file 'ss_setup.pl'\n");
+print "From Do:\n" ;
 print $ss->Dump() ;
 
 print "\$ss{A3} = $ss{A3}\n" ;
@@ -40,7 +41,7 @@ print "keys:" . join(', ', keys %ss) . "\n" ;
 @ss{'A1', 'B1:C2', 'A8'} = ('A', 'B', 'C');
 print $ss->Dump() ;
 
-~ # range fetching
+# range fetching
 #~ print $ss->Dump(undef, 1) ;
 #~ $ss->{DEBUG}{FETCH}++ ;
 #~ $ss->{DEBUG}{ADDRESS_LIST}++ ;
@@ -62,3 +63,5 @@ print $ss->Dump() ;
 
 #~ @ss{$ss->GetAddressList('A1:A3')} = (1 .. 3) ;
 #~ print $ss->Dump(undef, 1) ;
+
+

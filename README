@@ -1,47 +1,37 @@
-Spreadsheet/Perl version 0.02
+Spreadsheet/Perl version 0.04
 =============================
 
-Spreadsheet::Perl is a pure Perl implementation of a spreadsheet.
+Spreadsheet::Perl is a pure Perl implementation of a spreadsheet engine.
 
-Please look at the man page for more information.
+Please look at the man page for more information or the online documentation @ http://search.cpan.org/~nkh
 
 In this release:
 
-New:
-- cleaned up all the tests
-- Done a third of the documentation
+	CHANGED: rewrote Address.pm
+	CHANGED: replaced SetCellNAme and SetRangeName by SetNames
+	CHANGED: Renamed Formula to PerlFormula
 
-Changes/Fixes:
-- Reset croaked if  not given data
+	ADDED: finished the first draft of the documentation
+	ADDED: almost all functions ready to take a canonized name with spreadsheet
+	ADDED: '*' adressing but wait till I understand the semantic better to turn it on
+	ADDED: NoCache available for whole spreadsheet
+	ADDED: Ref (scalar mapping)
+	ADDED: spreadsheet REF, takes multiple cells use a single sub
+	ADDED: finished he first version of the documentation
+	ADDED: HTML output
+	ADDED: perl warning are displayed with spreadsheet context when in formula is run
+
+	FIXED: AUTOCALC
+	FIXED: error in formula address handling
+	FIXED: Missed a pop in the dependency stack
+	FIXED: CanonizeAddress does a real canonization
+
 
 TODO
 
-Unfortunately there is still a lot to do (the basics are there) but I have
-the feeling I will not get the time needed. If someone is willing to help
-or take over, I'll be glad to step aside.
+There is still lots to do (the basics are there) but I have
 
-I put this early version on cpan in the hope to get someone interested so the
-module doesn't end up in one of my never used archive CDs.
-
-Here are some of the things that I find missing, this doesn't mean all are good ideas:
-- documentation, test (working on it)
-- perl debugger support à la PBS
-- Row/column/spreadsheet default values.
-- R1C1 Referencing
-- database interface (a handfull of functions at most)
-- WWW interface
-- Arithmetic functions (only Sum is implemented), statistic functions
-- printing, exporting
-- importing from other spreadsheets
-- more serious file reading and file writting
-- more complex stuff (fixing one fixes the other)
-	- Insertion of rows and columns
-	- Deletion of rows and columns
-	- Sorting
-- a gui (curses, tk, wxWindows) would be great!
-- a nice logo :-)
-
-Some of the stuff needed is available on CPAN, just some glue is needed.
+Please help this project.
 
 BUGS
 
@@ -63,7 +53,10 @@ This module requires these other modules and libraries:
 Spreadsheet::ConvertAA.
 
 Data::TreeDumper is used if found (I recommend installing it to get nice dumps).
+
 Devel::Size
+
+Data::Table for html output (interim solution)
 
 COPYRIGHT AND LICENCE
 
