@@ -1,17 +1,11 @@
-Spreadsheet/Perl version 0.07
-=============================
+Spreadsheet/Perl version
+========================
 
 Spreadsheet::Perl is a pure Perl implementation of a spreadsheet engine.
 
 Please look at the man page for more information or the online documentation @ http://search.cpan.org/~nkh
 
-In this release:
-
-	FIXED: numeric address can embed spaces
-	ADDED: DeleteFunction callback for cells
-	FIXED: multilined formulas are serialized on multiple lines
-	ADDED: Common format support thanks to Steffen Müller
-	CHANGED: Format of this file
+See Changes files for release specific information.
 
 TODO:
 
@@ -21,7 +15,7 @@ This project needs contributors, feel free to contact me.
 
 BUGS
 
-Plenty, I just don't know where they are :-)
+Plenty, I just don't know where they are yet.
 
 INSTALLATION
 
@@ -37,20 +31,16 @@ DEPENDENCIES
 This module requires these other modules and libraries:
 
 Spreadsheet::ConvertAA.
-
 Data::TreeDumper
-
 Devel::Size
-
 Data::Table for html output (interim solution)
-
 Text::ASCIITable
 
 COPYRIGHT AND LICENCE
 
 Khemir Nadim ibn Hamouda. <nadim@khemir.net>
 
-  Copyright (c) 2004 Nadim Ibn Hamouda el Khemir. All rights
+  Copyright (c) 2004, 2007 Nadim Ibn Hamouda el Khemir. All rights
   reserved.  This program is free software; you can redis-
   tribute it and/or modify it under the same terms as Perl
   itself.

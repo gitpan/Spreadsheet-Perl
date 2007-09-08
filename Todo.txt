@@ -1,6 +1,19 @@
 Spreadsheet::Perl
 =================
 
+function to show cell dependencies
+
+setting data to a scalar should be equivalent to Value => xx or PerlFormula => ...
+
+verification at load time of the formulas could be optional
+
+default file format should be perl, writable too (dump streamer?)
+
+function definitions should be object specific, OK as class specific but a choice should exist
+
+range reading should be context specific. scalar => array ref. array => array
+
+
 #!Use new ASCIITAble.
 
 	

@@ -10,6 +10,7 @@ WriteMakefile(
 	Term::Size             => 0.2,
 	Spreadsheet::ConvertAA => 0.02,
         Data::TreeDumper       => 0.12,
+        Data::Table => 1.50,
 	Text::ASCIITable       => 0.12
 	},
 

@@ -83,6 +83,8 @@ my $address_list  = shift ; # array ref
 my $display_setup = shift ;
 my $dtd_setup     = shift || {} ;
 
+#~ print DumpTree($ss, $ss->{NAME}) ;  ;
+
 use Data::Dumper ;
 $Data::Dumper::Indent = 1 ;
 #~ return(Dumper($ss)) ;
@@ -95,6 +97,12 @@ use Devel::Size qw(size total_size) ;
 $Devel::Size::warn = 0 ;
 $use_devel_size = 1 ;
 EOE
+
+# Saturday 08 September 2007
+# Devel::Size seg faults or generates a *** glibc detected *** perl: double free or corruption (out): 0x0000000000605190 ***
+# see RT #29238
+
+$use_devel_size = 0 ;
 
 my $dump ;
 
@@ -183,12 +191,13 @@ my $NoDependentData = sub
 					
 					for my $dependent (keys %$s)
 						{
-						my ($spreadsheet, $cell, $name) = @{$s->{$dependent}{CELLS}} ;
+						my ($spreadsheet, $cell, $name) = @{$s->{$dependent}{DEPENDENT_DATA}} ;
 						push @dependents, "$name!$cell" ;
 						
 						if($ss->{DEBUG}{DEPENDENT})
 							{
-							push @dependents_formulas, "$s->{$dependent}{FORMULA}[0] [$s->{$dependent}{COUNT}]" ;
+							push @dependents_formulas, "$spreadsheet->{CELLS}{$cell}{GENERATED_FORMULA} [$s->{$dependent}{COUNT}]" ;
+							#~ push @dependents_formulas, "$s->{$dependent}{FORMULA} [$s->{$dependent}{COUNT}]" ;
 							}
 						else
 							{

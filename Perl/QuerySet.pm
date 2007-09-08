@@ -23,7 +23,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( DefineSpreadsheetFunction ) ;
 
-our $VERSION = '0.01' ;
+our $VERSION = '0.02' ;
 
 #-------------------------------------------------------------------------------
 
@@ -179,7 +179,7 @@ return
 		   ( exists $ss->{CELLS}{$_}{NEED_UPDATE} && $ss->{CELLS}{$_}{NEED_UPDATE})
 		||
 			(
-			   (exists $ss->{CELLS}{$_}{FORMULA} || exists $ss->{CELLS}{$_}{FETCH_SUB})
+			   (exists $ss->{CELLS}{$_}{PERL_FORMULA} || exists $ss->{CELLS}{$_}{FETCH_SUB} || exists $ss->{CELLS}{$_}{FORMULA})
 			&& (! exists $ss->{CELLS}{$_}{NEED_UPDATE})
 			)
 		} (SortCells(keys %{$ss->{CELLS}}))
@@ -196,13 +196,14 @@ confess "Expecting a name!" unless '' eq ref $name && defined $name && $name ne 
 confess "Expecting a function reference or a function body!" unless defined $function_ref || defined $function_body ;
 confess "Expecting a function reference _or_ a function body!" if defined $function_ref && defined $function_body ;
 
-#~ *$name = sub {$function_ref->(@_) ;} ; # this has perl generate a <warning but in the wrong context
-
 no strict ;
+
+#~ *$name = sub {$function_ref->(@_) ;} ; # this has perl generate a warning but with the wrong context
+
 if(eval "*$name\{CODE}")
 	{
 	warn "Subroutine Spreadsheet::Perl::$name redefined at @{[join ':', caller()]}\n" ;
-	undef &${name} ;
+	#~ undef &${name} ; #!! hmm, undef the sub in its original package and local package as it is an alias
 	}
 	
 if(defined $function_body && ! defined $function_ref)
@@ -217,6 +218,8 @@ if($@)
 	}
 else
 	{
+	local $SIG{'__WARN__'} = sub {print STDERR $_[0] unless $_[0] =~ 'redefined at'} ;
+	
 	*$name = $function_ref ;
 	
 	$Spreadsheet::Perl::defined_functions{$name} = {
@@ -242,9 +245,9 @@ if($is_cell)
 	{
 	if(exists $self->{CELLS}{$address})
 		{
-		if(exists $self->{CELLS}{$address}{FORMULA})
+		if(exists $self->{CELLS}{$address}{PERL_FORMULA} || exists $self->{CELLS}{$address}{FORMULA})
 			{
-			return($self->{CELLS}{$address}{GENERATED_FORMULA}, $self->{CELLS}{$address}{FORMULA}[1]) ;
+			return($self->{CELLS}{$address}{GENERATED_FORMULA}) ;
 			}
 		else
 			{
@@ -291,6 +294,14 @@ if($is_cell)
 			# defintion line?
 			
 			$cell_info .= $self->{CELLS}{$address}{FORMULA}[1] . " =>\n" 
+					. $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
+			}
+			
+		if(exists $self->{CELLS}{$address}{PERL_FORMULA})
+			{
+			# defintion line?
+			
+			$cell_info .= $self->{CELLS}{$address}{PERL_FORMULA}[1] . " =>\n" 
 					. $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
 			}
 			

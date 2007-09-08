@@ -58,3 +58,4 @@ examples/tie.pl
 examples/triggers.pl
 examples/user_data.pl
 examples/validator.pl
+META.yml                                 Module meta-data (added by MakeMaker)

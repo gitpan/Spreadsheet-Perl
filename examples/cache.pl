@@ -38,4 +38,4 @@ print "$ss{A1}\n" ;
 $ss{A2} = 'there' ;
 print $ss{A1} . "\n" ; 
 
-print $ss->DumpTable() ;
+#~ print $ss->DumpTable() ;

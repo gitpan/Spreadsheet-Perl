@@ -13,7 +13,7 @@ my $ss = tied %ss ;
 	(
 	  A1 => 1
 	, A2 => FetchFunction('always 1', sub{1})
-	, A3 => PerlFormula('', '$ss->Sum("A1:A2")') 
+	, A3 => PerlFormula('$ss->Sum("A1:A2")') 
 	
 	, B1 => 3
 	, c2 => "hi there"
@@ -21,6 +21,7 @@ my $ss = tied %ss ;
 
 print $ss->Dump() ;
 print "\$ss{A3} = $ss{A3}\n" ;
+
 
 %ss = do "ss_setup.pl" or confess("Couldn't evaluate setup file 'ss_setup.pl'\n");
 print "From Do:\n" ;

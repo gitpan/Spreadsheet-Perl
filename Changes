@@ -1,5 +1,11 @@
 Revision history for Perl extension Spreadsheet::Perl.
 
+0.08  Sun Feb  8 00:00:00 2004
+	FIXED: errors in examples, missed in last release
+	FIXED: mismatch in structure format for generated and hand written formula definitions
+	CHANGED: CELLS, in dependent definition, to DEPENDENT_DATA
+	REMOVED: total size reported by Devel::Size see RT #29238
+
 0.07  Sun Feb  8 00:00:00 2004
 	FIXED: numeric address can embed spaces
 	ADDED: DeleteFunction callback for cells

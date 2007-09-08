@@ -19,17 +19,13 @@ tie my %ss, "Spreadsheet::Perl"
 				, A2 =>
 						{
 						VALUE => 'there'
-						
-						#~ FETCH_SUB => \&DoublePrevious
-						#~ , FETCH_SUB_ARGS => [ 1, 2, 3]
-						
-						#~ FORMULA => '$ss{A1}'
 						}
 				} ;
 
 my $ss = tied %ss ;
 
-print  $ss{A1} . ' ' . $ss{A2} . "\n" ;
+#~ print  $ss{A1} . ' ' . $ss{A2} . "\n" ;
+print "1\n" . $ss->Dump() ;
 
 #---------------------------------------------------------------------------------
 
@@ -46,16 +42,17 @@ tie %ss, "Spreadsheet::Perl"
 						  FETCH_SUB => \&DoublePrevious
 						, FETCH_SUB_ARGS => [ 1, 2, 3]
 						
-						#~ FORMULA => '$ss{A1}'
+						#~ PERL_FORMULA => ['$ss{A1}']
 						}
 				} ;
 
 $ss = tied %ss ;
-print $ss->Dump() ;
+print "2\n" . $ss->Dump() ;
 
-print  $ss{A1} . ' ' . $ss{A2} . "\n" ;
+#~ print  $ss{A1} . ' ' . $ss{A2} . "\n" ;
 
-print $ss->Dump() ;
+print "3\n" . $ss->DumpTable() ;
+print "3bis\n" . $ss->Dump() ;
 
 sub DoublePrevious
 {
@@ -81,12 +78,14 @@ tie %ss, "Spreadsheet::Perl"
 				, A2 =>
 						{
 						  VALUE => 'there'
-						, FORMULA => ['$ss{A1}']
+						, PERL_FORMULA => [undef, '$ss{A1}']
+						#~ , FORMULA => [undef, 'A1']
 						}
 				} ;
 
 $ss = tied %ss ;
 
+print "4\n" . $ss->Dump() ;
 print  $ss{A1} . ' ' . $ss{A2} . "\n" ;
 
 #---------------------------------------------------------------------------------
@@ -108,20 +107,20 @@ tie %ss, "Spreadsheet::Perl"
 						
 						, FETCH_SUB => \&DoublePrevious
 						, FETCH_SUB_ARGS => [ 1, 2, 3]
-						, FORMULA => '$ss{A1}'
+						, FORMULA => [undef, 'A1'] # ignored when fetch sub already defined
 						}
 				} ;
 
 $ss = tied %ss ;
 
+print "5\n" . $ss->Dump() ;
 print  $ss{A1} . ' ' . $ss{A2} . "\n" ;
-
 
 #---------------------------------------------------------------------------------
 
 %ss = do "ss_setup.pl" or confess("Couldn't evaluate setup file 'ss_setup.pl'\n");
 
-print $ss->Dump() ;
+print "6\n" . $ss->Dump() ;
 $ss->GenerateHtmlToFile('setup_do.html') ;
 print $ss->DumpTable() ;
 

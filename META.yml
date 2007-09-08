@@ -1,0 +1,15 @@
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         Spreadsheet-Perl
+version:      0.08
+version_from: Perl.pm
+installdirs:  site
+requires:
+    Data::Table:                   1.5
+    Data::TreeDumper:              0.12
+    Spreadsheet::ConvertAA:        0.02
+    Term::Size:                    0.2
+    Text::ASCIITable:              0.12
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.30

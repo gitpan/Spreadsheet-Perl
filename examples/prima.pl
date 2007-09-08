@@ -10,6 +10,7 @@ base on Prima's grid exemple.
 use strict;
 use warnings ;
 
+use Data::TreeDumper ;
 
 package PrimaOut;
 
@@ -61,6 +62,14 @@ my $ss = tie my %ss, "Spreadsheet::Perl" ;
 
 my $file = $ARGV[0] || 'ss_data.pl' ;
 $ss->Read($file) ;
+
+{
+local $ss->{DEBUG}{INLINE_INFORMATION} ;
+$ss->{DEBUG}{INLINE_INFORMATION}++ ;
+print $ss->DumpTable() ;
+print $ss->Dump() ;
+}
+
 $ss{C3} = PF('$ss{C2} + 5') ;
 
 my $grid;
@@ -169,7 +178,9 @@ $grid = $frame->insert_to_frame
 				, color => $self->color
 				) ;
 			
-			if(defined $ss->GetFormulaText("$col, $row"))
+			my $formula = $ss->GetFormulaText("$col, $row") || '' ;
+			
+			if(defined $formula)
 				{
 				if($xy_sel)
 					{
@@ -182,7 +193,7 @@ $grid = $frame->insert_to_frame
 				}
 				       
 			$canvas-> clear($x1, $y1, $x2, $y2) ;
-			$canvas->text_out($self->get_cell_text($col, $row), $x1, $y1) ;
+			$canvas->text_out($self->get_cell_text($col, $row)  , $x1, $y1) ;
 			$canvas-> set(%backup) ;
 			},
 			
@@ -201,7 +212,15 @@ $grid = $frame->insert_to_frame
 				}
 			else
 				{
-				$editor->insert_text($ss{"$column,$row"}) ;
+				my $value = $ss{"$column,$row"} ;
+				if('ARRAY' eq ref $value)
+					{
+					$editor->insert_text(DumpTree($ss{"$column,$row"}, "Array @ [@{[ToAA($column)]}$row]", USE_ASCII => 1)) ;
+					}
+				else
+					{
+					$editor->insert_text($ss{"$column,$row"}) ;
+					}
 				}
 			},
 			

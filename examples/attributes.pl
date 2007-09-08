@@ -14,6 +14,5 @@ $ss{A1} = PerlFormula('$ss{A5} * 5') ;
 
 use Data::TreeDumper ;
 print DumpTree($ss{'A1.FORMAT'}, 'format:', USE_ASCII => 0) ;
-print DumpTree($ss{'A1.FORMULA'}, 'formula:') ;
 
 print $ss->Dump() ;

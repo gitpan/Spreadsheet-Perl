@@ -23,7 +23,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( Reset ) ;
 
-our $VERSION = '0.07' ;
+our $VERSION = '0.08' ;
 
 use Spreadsheet::Perl::Address ;
 use Spreadsheet::Perl::Cache ;
@@ -260,8 +260,8 @@ if($is_cell)
 															  $self
 															, $address
 															, $address
-															, $formula->[0]
-															, (@$formula)[1 .. (@$formula - 1)]
+															, $formula->[1]
+															, (@$formula)[2 .. (@$formula - 1)]
 															) ;
 				}
 			else
@@ -276,8 +276,8 @@ if($is_cell)
 															  $self
 															, $address
 															, $address
-															, $formula->[0]
-															, (@$formula)[1 .. (@$formula - 1)]
+															, $formula->[1]
+															, (@$formula)[2 .. (@$formula - 1)]
 															) ;
 					}
 				}
@@ -295,7 +295,12 @@ if($is_cell)
 						
 						if(exists $current_cell->{FORMULA})
 							{
-							print $dh " formula: @{$current_cell->{FORMULA}}" ;
+							print $dh " formula: @{$current_cell->{FORMULA}[1]}" ;
+							}
+							
+						if(exists $current_cell->{PERL_FORMULA})
+							{
+							print $dh " formula: @{$current_cell->{PERL_FORMULA}[1]}" ;
 							}
 							
 						print $dh " defined at '@{$current_cell->{DEFINED_AT}}}'" if(exists $current_cell->{DEFINED_AT}) ;
@@ -422,13 +427,17 @@ if(exists $self->{DEPENDENT_STACK} && @{$self->{DEPENDENT_STACK}})
 	
 	if($self->{DEBUG}{DEPENDENT})
 		{
-		$current_cell->{DEPENDENT}{$dependent_name}{CELLS} = $dependent ;
+		$current_cell->{DEPENDENT}{$dependent_name}{DEPENDENT_DATA} = $dependent ;
 		$current_cell->{DEPENDENT}{$dependent_name}{COUNT}++ ;
-		$current_cell->{DEPENDENT}{$dependent_name}{FORMULA} = $spreadsheet->{CELLS}{$cell_name}{FORMULA} ;
+		
+		#~ $current_cell->{DEPENDENT}{$dependent_name}{FORMULA} = $spreadsheet->{CELLS}{$cell_name}{GENERATED_FORMULA} ;
+		# above can be computed on the fly when debugging
+		# this paragraph should be deleted when version 0.10 is reached
+		
 		}
 	else
 		{
-		$current_cell->{DEPENDENT}{$dependent_name}{CELLS} = $dependent ;
+		$current_cell->{DEPENDENT}{$dependent_name}{DEPENDENT_DATA} = $dependent ;
 		}
 	}
 }
@@ -560,10 +569,12 @@ for my $current_address ($self->GetAddressList($address))
 				if(/^Spreadsheet::Perl::Formula$/)
 					{
 					$current_cell->{FORMULA} = $value ;
+					delete $current_cell->{PERL_FORMULA} ;
 					}
 				else
 					{
 					$current_cell->{PERL_FORMULA} = $value ;
+					delete $current_cell->{FORMULA} ;
 					}
 				
 				$current_cell->{FETCH_SUB_ARGS} = [(@$value)[2 .. (@$value - 1)]] ;
@@ -726,7 +737,7 @@ return unless exists $current_cell->{DEPENDENT} ;
 
 for my $dependent_name (keys %{$current_cell->{DEPENDENT}})
 	{
-	my $dependent = $current_cell->{DEPENDENT}{$dependent_name}{CELLS} ;
+	my $dependent = $current_cell->{DEPENDENT}{$dependent_name}{DEPENDENT_DATA} ;
 	my ($spreadsheet, $cell_name) = @$dependent ;
 	
 	if(exists $spreadsheet->{CELLS}{$cell_name})
@@ -1027,7 +1038,7 @@ spreadsheet functions are accessed through the tied object.
 						{
 						VALUE => 'there'
 						#~ or
-						#~ PERL_FORMULA => '$ss{A1}'
+						#~ PERL_FORMULA => [undef, '$ss{A1}']
 						}
 				} ;
 
@@ -1097,8 +1108,9 @@ Generates:
   |  |- ANCHOR = A3
   |  |- FETCH_SUB = CODE(0x825702c)
   |  |- FETCH_SUB_ARGS
-  |  |- FORMULA = Object of type 'Spreadsheet::Perl::Formula'
-  |  |  `- 0 = $ss->Sum("A1:A2")
+  |  |- PERL_FORMULA = Object of type 'Spreadsheet::Perl::PerlFormula'
+  |  |  |- 0 = CODE(0x923752c)
+  |  |  `- 1 = $ss->Sum("A1:A2")
   |  |- GENERATED_FORMULA = $ss->Sum("A1:A2")
   |  `- NEED_UPDATE = 1
   |- B1
