@@ -102,7 +102,7 @@ EOE
 # Devel::Size seg faults or generates a *** glibc detected *** perl: double free or corruption (out): 0x0000000000605190 ***
 # see RT #29238
 
-$use_devel_size = 0 ;
+#~ $use_devel_size = 0 ;
 
 my $dump ;
 

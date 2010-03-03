@@ -121,23 +121,8 @@ for my $range (@$ranges)
 		}
 		
 	#------------------------------------------------------------------------
-	#~ # page width handling
-	#~ use Term::Size ;
-	
-	#~ my ($screen_width) = Term::Size::chars *STDOUT{IO} ;
-	#~ $screen_width = 78 if $screen_width eq '' ;
-	
-        #~ $table->setOptions('outputWidth', $screen_width);
-	#~ my $pages = $table->pageCount() ;
-	
-        #~ for my $page (1 .. $pages) 
-		#~ {
-		#~ $dump .= $table->drawPage($page)."\n";
-		#~ $dump .= "[$page/$pages].\n\n" if  $pages > 1;
-		#~ }
-	#------------------------------------------------------------------------
 	# page width handling
-	use Term::Size ;
+	use Term::Size::Any ;
 	
 	my $table_width = $table->getTableWidth() ;
 	
