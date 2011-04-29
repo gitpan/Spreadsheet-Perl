@@ -23,7 +23,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( Reset ) ;
 
-our $VERSION = '0.09' ;
+our $VERSION = '0.10' ;
 
 use Spreadsheet::Perl::Address ;
 use Spreadsheet::Perl::Cache ;
@@ -284,6 +284,8 @@ if($is_cell)
 				
 			if(exists $current_cell->{FETCH_SUB}) # formula or fetch callback
 				{
+				$self->get_initial_value_from_perl_scalar($start_cell, $current_cell)  if(exists $current_cell->{REF_FETCH_SUB}) ;
+				
 				if($current_cell->{NEED_UPDATE} || ! exists $current_cell->{NEED_UPDATE} || ! exists $current_cell->{VALUE})
 					{
 					if($self->{DEBUG}{FETCH_SUB})
@@ -295,12 +297,12 @@ if($is_cell)
 						
 						if(exists $current_cell->{FORMULA})
 							{
-							print $dh " formula: @{$current_cell->{FORMULA}[1]}" ;
+							print $dh " formula: $current_cell->{FORMULA}[1]" ;
 							}
 							
 						if(exists $current_cell->{PERL_FORMULA})
 							{
-							print $dh " formula: @{$current_cell->{PERL_FORMULA}[1]}" ;
+							print $dh " formula: $current_cell->{PERL_FORMULA}[1]" ;
 							}
 							
 						print $dh " defined at '@{$current_cell->{DEFINED_AT}}}'" if(exists $current_cell->{DEFINED_AT}) ;
@@ -315,6 +317,11 @@ if($is_cell)
 					else
 						{
 						$value = ($current_cell->{FETCH_SUB})->($self, $start_cell) ;
+						}
+						
+					if(exists $current_cell->{REF_STORE_SUB} && exists $current_cell->{STORE_ON_FETCH})
+						{
+						$current_cell->{REF_STORE_SUB}->($self, $start_cell, $value) ;
 						}
 						
 					if(exists $current_cell->{STORE_SUB} && exists $current_cell->{STORE_ON_FETCH})
@@ -347,6 +354,18 @@ if($is_cell)
 				}
 			else
 				{
+				if(exists $current_cell->{REF_FETCH_SUB})
+					{
+					#fetch value from reference
+					if(exists $self->{DEBUG}{FETCH_TRIGGER}{$start_cell})
+						{
+						my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+						print $dh "  => Fetching cell '$start_cell' value from scalar reference.\n" ;
+						}
+					
+					$current_cell->{VALUE} = $current_cell->{REF_FETCH_SUB}->($self, $start_cell) ;
+					}
+					
 				if(exists $current_cell->{VALUE})
 					{
 					$value = $current_cell->{VALUE} ;
@@ -414,6 +433,29 @@ else
 }
 
 *Get = \&FETCH ;
+
+sub get_initial_value_from_perl_scalar
+{
+# note that the scalar fetch mechanism is removed after the call to this sub
+
+my ($self, $cell_address, $current_cell) = @_ ;
+
+if(exists $current_cell->{REF_FETCH_SUB})
+	{
+	#fetch initial value from reference
+	if(exists $self->{DEBUG}{FETCH_TRIGGER}{$cell_address})
+		{
+		my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+		print $dh "  => Fetching *initial* cell '$cell_address' value from scalar reference.\n" ;
+		}
+	
+	$current_cell->{VALUE} = $current_cell->{REF_FETCH_SUB}->($self, $cell_address) ;
+	
+	delete $current_cell->{REF_FETCH_SUB} ;
+	delete $current_cell->{CACHE} ;
+	$current_cell->{STORE_ON_FETCH}++ ;
+	}
+}
 
 sub FindDependent
 {
@@ -483,7 +525,8 @@ else
 if($self->{DEBUG}{STORE})
 	{
 	my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-	print $dh "Storing '$address'\n" ;
+	#~ print $dh "Storing To '$address' @ @{[join ':', caller()]}\n" ;
+	print $dh "Storing To '$address'\n" ;
 	}
 	
 # Set the value in the current spreadsheet
@@ -568,7 +611,7 @@ for my $current_address ($self->GetAddressList($address))
 				
 				if(/^Spreadsheet::Perl::Formula$/)
 					{
-					$current_cell->{FORMULA} = $value ;
+					$current_cell->{FORMULA} = $value ; # should we compile and check the formula directly?
 					delete $current_cell->{PERL_FORMULA} ;
 					}
 				else
@@ -648,32 +691,16 @@ for my $current_address ($self->GetAddressList($address))
 				last
 				} ;
 				
-			# cleanup commonly uneeded data
-			delete $current_cell->{FORMULA} ;
-			delete $current_cell->{PERL_FORMULA} ;
-			delete $current_cell->{ANCHOR} ;
-			
-			unless(exists $current_cell->{IS_REFERENCE})
-				{
-				delete $current_cell->{CACHE} ; 
-				delete $current_cell->{FETCH_SUB} ;
-				delete $current_cell->{FETCH_SUB_ARGS} ;
-				}
-				
-			delete $current_cell->{NEED_UPDATE} ; 
-			# cleanup end
-			
 			/^Spreadsheet::Perl::Reference$/ && do
 				{
 				delete $current_cell->{STORE_SUB_ARGS} ;
 				delete $current_cell->{FETCH_SUB_ARGS} ;
 				
-				$current_cell->{IS_REFERENCE}   = 1 ;
-				$current_cell->{STORE_SUB_INFO} = $value->[0] ;
-				$current_cell->{STORE_SUB}      = $value->[1] ;
-				$current_cell->{FETCH_SUB_INFO} = $value->[0] ;
-				$current_cell->{FETCH_SUB}      = $value->[2] ;
-				$current_cell->{CACHE}          = 0 ;
+				$current_cell->{IS_REFERENCE}  = 1 ;
+				$current_cell->{REF_SUB_INFO}  = $value->[0] ;
+				$current_cell->{REF_STORE_SUB} = $value->[1] ;
+				$current_cell->{REF_FETCH_SUB} = $value->[2] ;
+				$current_cell->{CACHE}         = 0 ;
 				last
 				} ;
 				
@@ -712,6 +739,11 @@ for my $current_address ($self->GetAddressList($address))
 				{
 				$current_cell->{VALUE} = $value_to_store ;
 				}
+				
+			if(exists $current_cell->{REF_STORE_SUB})
+				{
+				$current_cell->{REF_STORE_SUB}->($self, $current_address, $value_to_store) ;
+				}
 			}
 			
 		if($self->{AUTOCALC} && exists $current_cell->{DEPENDENT} && $current_cell->{DEPENDENT})
@@ -731,7 +763,9 @@ for my $current_address ($self->GetAddressList($address))
 
 sub MarkDependentForUpdate
 {
-my ($self, $current_cell) = @_ ;
+my ($self, $current_cell, $level) = @_ ;
+
+$level ||= 1 ;
 
 return unless exists $current_cell->{DEPENDENT} ;
 
@@ -742,13 +776,36 @@ for my $dependent_name (keys %{$current_cell->{DEPENDENT}})
 	
 	if(exists $spreadsheet->{CELLS}{$cell_name})
 		{
-		if(exists $spreadsheet->{CELLS}{$cell_name}{FETCH_SUB})
+		if( exists $current_cell->{CACHE} && $current_cell->{CACHE} == 0)
 			{
 			$spreadsheet->{CELLS}{$cell_name}{NEED_UPDATE}++ ;
+			
+			if(exists $self->{DEBUG}{MARK_ALL_DEPENDENT} || exists $self->{DEBUG}{MARK_DEPENDENT}{$cell_name})
+				{
+				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+				print $dh ('   ' x $level) . "'$cell_name' needs update\n" ;
+				}
+			
+			$self->MarkDependentForUpdate($spreadsheet->{CELLS}{$cell_name}, $level+1) ;
 			}
 		else
 			{
-			delete $current_cell->{DEPENDENT}{$dependent_name} ;
+			if(exists $spreadsheet->{CELLS}{$cell_name}{FETCH_SUB})
+				{
+				$spreadsheet->{CELLS}{$cell_name}{NEED_UPDATE}++ ;
+				
+				if(exists $self->{DEBUG}{MARK_ALL_DEPENDENT} || exists $self->{DEBUG}{MARK_DEPENDENT}{$cell_name})
+					{
+					my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+					print $dh ('   ' x $level) . "'$cell_name' needs update\n" ;
+					}
+			
+				$self->MarkDependentForUpdate($spreadsheet->{CELLS}{$cell_name}, $level+1) ;
+				}
+			else
+				{
+				delete $current_cell->{DEPENDENT}{$dependent_name} ;
+				}
 			}
 		}
 	else
@@ -1901,7 +1958,7 @@ The callback is called with these arguments
 
 Few problems fit the two dimensional mapping spreadsheets use. For a given project, you may already have data structure 
 that you want to perform calculation on (thought spreadsheet). Mapping from the domain structure and back is time consuming,
-error prone and borring. Even if that process cannot be eliminated, B<Spreadsheet::Perl> can do half the job. Here is an example:
+error prone and borring. Even if that process cannot be eliminated, B<Spreadsheet::Perl> can do half the job. Here is a simple example:
 
   my $variable = 25 ;
   
@@ -1924,14 +1981,179 @@ B<Ref> can be called as attribute creator (as above) or as a spreadsheet member 
 	'A3:A5' => \$variable
 	) ;
 
-B<Ref> accepts reference to scalar only (as of version 0.04, this could be changed if needed)
+A more complex example (based on examples/ref2.pl) which also show the usage of debug flags
+
+	use strict ;
+	use warnings ;
+
+	use Data::TreeDumper ;
+	use Spreadsheet::Perl ;
+
+	my $ss = tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
+
+	# set some debugging flags so we can see what is happening in the spreadsheet
+
+	# show when a value is fetched from one of the following cells
+	# we could also have used "$ss->{DEBUG}{FETCH}++; " but it doesn't show the details of the fetch operation
+	$ss->{DEBUG}{FETCH_TRIGGER}{A1}++ ;
+	$ss->{DEBUG}{FETCH_TRIGGER}{A2}++ ;
+	$ss->{DEBUG}{FETCH_TRIGGER}{A3}++ ;
+
+	# show which formulas are applied
+	$ss->{DEBUG}{FETCH_SUB}++ ;
+	
+
+	# show when something is stored in a cell, tht can be a value, a formula, ...
+	$ss->{DEBUG}{STORE}++;
+
+	# show when dependencies are marked for recalculation
+	$ss->{DEBUG}{MARK_ALL_DEPENDENT}++ ;
+	 
+	# plain perl variables
+	my $variable = 25 ;
+	my $variable_2 = 30 ;
+	my $struct = {result => 'hello world'} ;
+
+	# make cells refer to perl scalars. Note that this is a two way relationship
+	$ss->Ref
+		(
+		'Ref and formulas',
+		'A1' => \$variable,
+		'A2' => \$variable_2,
+		'A3' => \$struct->{result},
+		) ;
+
+	# set formulas over the perl scalars. the initial value is fetched from the perl scalar, then 
+	# the formulas are applied. dependencies and cyclic dependencies are handled 
+	$ss->PerlFormula
+		(
+		'A2' => '$ss{A1} * 2',	
+		'A3' => '$ss{A2} * 2',	
+		) ;
+
+	# fetch the values, running the formulas as necessary
+	print "$ss{A1} $ss{A2} $ss{A3}\n" ;
+
+	# fetch the values, running the formulas as necessary, here some results will be cached
+	print "$ss{A1} $ss{A2} $ss{A3}\n" ;
+
+	# show the values of the perl scalars
+	print DumpTree 
+		{
+		'$variable' => $variable,
+		'$variable_2' => $variable_2,
+		'$struct'=> $struct,
+		}, 'scalars:' ;
+
+	# set a cell and the perl scalar underneath 
+	$ss{A1} = 10 ;
+
+	# fetch the values, running the formulas as necessary
+	print "$ss{A1} $ss{A2} $ss{A3}\n" ;
+
+	# show the values of the perl scalars
+	print DumpTree 
+		{
+		'$variable' => $variable,
+		'$variable_2' => $variable_2,
+		'$struct'=> $struct,
+		}, 'scalars:' ;
+
+The output is the following (comments are added as an explanation):
+
+	# make cells refer to perl scalars. (arguments are passed in a hash thus the order)
+	Storing To 'A3'
+	Storing To 'A1'
+	Storing To 'A2'
+	
+	# set formulas over the perl scalars.
+	Storing To 'A3'
+	Storing To 'A2'
+	
+	# fetch the values, running the formulas as necessary
+	# this is the result of the first: print "$ss{A1} $ss{A2} $ss{A3}\n" ;
+	
+	# A1, the value comes from the scalar
+	Fetching cell 'A1'.
+	  => Fetching cell 'A1' value from scalar reference.
+	  
+	# A2, the value comes from the scalar but is used only to setup the cell
+	# the formula will take over
+	Fetching cell 'A2'.
+	  => Fetching *initial* cell 'A2' value from scalar reference.
+	  
+	# run the formula, note that the formula is also displayed in the dump
+	Running Sub @ 'TEST!A2' formula: $ss{A1} * 2
+	# fetch the A1 cell refered to in the formula
+	Fetching cell 'A1'.
+	  => Fetching cell 'A1' value from scalar reference.
+	  
+	# A3, identic to A2  
+	Fetching cell 'A3'.
+	  => Fetching *initial* cell 'A3' value from scalar reference.
+	Running Sub @ 'TEST!A3' formula: $ss{A2} * 2
+	Fetching cell 'A2'.
+	
+	# the result of the first print
+	25 50 100
+	
+	
+	# fetch the values, running the formulas as necessary, here some results are cached
+	# this is the result of the second: print "$ss{A1} $ss{A2} $ss{A3}\n" ;"
+	
+	# fetched from the perl scalar
+	Fetching cell 'A1'.
+	  => Fetching cell 'A1' value from scalar reference.
+	  
+	# A2 and A3 are fetched from the spreadsheet, since they are cached,
+	# there is no need to run the formulas again
+	Fetching cell 'A2'.
+	Fetching cell 'A3'.
+	
+	# the result of the second print
+	25 50 100
+	
+	# show the values of the perl scalars
+	scalars:
+	+- $struct  [H1]
+	|  +- result = 100  [S2]
+	+- $variable = 25  [S3]
+	+- $variable_2 = 50  [S4]
+	
+	# set a cell and the perl scalar underneath 
+	# the cells that have dependencies on A1 are marked for recalculation
+	Storing To 'A1'
+	   'A2' needs update
+	      'A3' needs update
+	      
+	      
+	# fetch the values, running the formulas as necessary      
+	Fetching cell 'A1'.
+	  => Fetching cell 'A1' value from scalar reference.
+	Fetching cell 'A2'.
+	Running Sub @ 'TEST!A2' formula: $ss{A1} * 2
+	Fetching cell 'A1'.
+	  => Fetching cell 'A1' value from scalar reference.
+	Fetching cell 'A3'.
+	Running Sub @ 'TEST!A3' formula: $ss{A2} * 2
+	Fetching cell 'A2'.
+	10 20 40
+	
+	# show the values of the perl scalars
+	scalars:
+	+- $struct  [H1]
+	|  +- result = 40  [S2]
+	+- $variable = 10  [S3]
+	+- $variable_2 = 20  [S4]		
+
+Note that B<Ref> accepts reference to scalars only.
 
 =head3 Removing the mapping
 
 Simply delete the cell:
 
   delete ${A1} ;
-  
+
 =head2 Store on fetch
 
 You can direct Spreadsheet::Perl to call the 'store callback' of a cell everytime the cell is fetched. What is this good for?
@@ -2002,8 +2224,6 @@ The attributes you can use are:
 
 =back
 
-This way of accessing the attributes, and which attributes exist, may change in the future or it may not.
-
 =head1 OUTPUT
 
 =head2 HTML
@@ -2059,6 +2279,8 @@ The following flags exist:
   $ss->{DEBUG}{FETCH_FROM_OTHER}++ ; # show when an inter spreadsheet value is fetched
   $ss->{DEBUG}{DEPENDENT_STACK}++ ; # show the dependent stack every time a value is fetched
   $ss->{DEBUG}{DEPENDENT}++ ; # store information about dependent and show them in dump
+  $ss->{DEBUG}{MARK_ALL_DEPENDENT}++; # shows when any dependent cell is marked as needing an update
+  $ss->{DEBUG}{MARK_DEPENDENT}{$cell_name} # shows when dependent cell '$cell_name' is marked as needing an update 
   $ss->{DEBUG}{VALIDATOR}++ ; # display calls to all validators in spreadsheet
   
   $ss->{DEBUG}{FETCH}++ ; # shows when a cell value is fetched
@@ -2142,6 +2364,16 @@ Khemir Nadim ibn Hamouda. <nadim@khemir.net>
   
 If you find any value in this module or want to influence it's development, mail me!  All hints, tips, flames and wishes
 are welcome at <nadim@khemir.net>.
+
+=head1 SEE ALSO
+
+L<Spreadsheet::Engine>
+
+I, of course prefere my implementation that, IMHO, does much more; but L<Spreadsheet::Engine> provides a lot of functions like
+SQRT, TODAY, TRIM, ... Since L<Spreadsheet::Perl> allows you to use perl as a cell formula language, there is alittle need for that.
+
+If you need to load spreadsheet with "common format" formulas, L<Spreadsheet::Engine> may be a goog alternative. Stealing all those
+to add them to L<Spreadsheet::Perl> has crossed my mind and it's not much work. Either send me a patch or ask and I may add them.
 
 =head1 DEPENDENCIES
 

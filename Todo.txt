@@ -3,8 +3,6 @@ Spreadsheet::Perl
 
 function to show cell dependencies
 
-setting data to a scalar should be equivalent to Value => xx or PerlFormula => ...
-
 verification at load time of the formulas could be optional
 
 default file format should be perl, writable too (dump streamer?)
@@ -13,10 +11,10 @@ function definitions should be object specific, OK as class specific but a choic
 
 range reading should be context specific. scalar => array ref. array => array
 
+debugging mode to show where the functions are called
 
 #!Use new ASCIITAble.
 
-	
 -a column/row stores default value for unset cells ? Use Fetch callback
 -spreadsheet (0,0) stores default value for unset cells ? Use Fetch callback
 
