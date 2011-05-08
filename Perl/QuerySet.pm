@@ -8,7 +8,6 @@ use strict ;
 use warnings ;
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
 
 our @ISA = qw(Exporter) ;
 
@@ -19,7 +18,6 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw() ;
 our @EXPORT ;
 push @EXPORT, qw( DefineSpreadsheetFunction ) ;
 
@@ -81,7 +79,8 @@ if(exists $self->{OTHER_SPREADSHEETS}{$name})
 	{
 	if($self->{OTHER_SPREADSHEETS}{$name} != $reference)
 		{
-		print "AddSpreadsheet: Replacing spreadsheet '$name'\n" ;
+		my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+		print $dh "AddSpreadsheet: Replacing spreadsheet '$name'\n" ;
 		}
 	}
 	
@@ -138,9 +137,22 @@ return
 		(
 		grep
 			{
-			! /^@/ && ! /[A-Z]0$/
+			! /^@/ && ! /^[A-Z]+0$/
 			} keys %{$self->{CELLS}}
 		)
+	) ;
+}
+
+sub GetCellHeaderList
+{
+my ($self) = @_ ;
+
+return
+	(
+	grep
+		{
+		/^@/ || /^[A-Z]+0$/
+		} keys %{$self->{CELLS}}
 	) ;
 }
 
@@ -281,7 +293,11 @@ if($is_cell)
 		{
 		my $cell_info = '' ;
 		
-		# cache ?
+		if(exists $self->{CELLS}{$address}{CACHE})
+			{
+			$cell_info .= "CACHE: '$self->{CELLS}{$address}{CACHE}'\n" ;
+			}
+
 		# lock ?
 		
 		if(exists $self->{CELLS}{$address}{STORE_SUB_INFO})
@@ -291,18 +307,18 @@ if($is_cell)
 			
 		if(exists $self->{CELLS}{$address}{FORMULA})
 			{
-			# defintion line?
+			# definition line?
 			
-			$cell_info .= $self->{CELLS}{$address}{FORMULA}[1] . " =>\n" 
-					. $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
+			$cell_info .= $self->{CELLS}{$address}{FORMULA}[1] . " =>\n" if $self->{DEBUG}{PRINT_ORIGINAL_FORMULA} ;
+			$cell_info .= $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
 			}
 			
 		if(exists $self->{CELLS}{$address}{PERL_FORMULA})
 			{
-			# defintion line?
+			# definition line?
 			
-			$cell_info .= $self->{CELLS}{$address}{PERL_FORMULA}[1] . " =>\n" 
-					. $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
+			$cell_info .= $self->{CELLS}{$address}{PERL_FORMULA}[1] . " =>\n" if $self->{DEBUG}{PRINT_ORIGINAL_FORMULA} ;
+			$cell_info .= $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
 			}
 			
 		if(exists $self->{CELLS}{$address}{FETCH_SUB_INFO})
@@ -314,7 +330,7 @@ if($is_cell)
 		}
 	else
 		{
-		return("Virtual cell\n") ;
+		return("#VC\n") ;
 		}
 	}
 else

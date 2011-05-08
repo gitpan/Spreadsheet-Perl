@@ -8,7 +8,6 @@ use strict ;
 use warnings ;
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
 
 our @ISA = qw(Exporter) ;
 
@@ -19,7 +18,6 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw( ) ;
 our @EXPORT ;
 push @EXPORT, qw( ) ;
 
@@ -121,7 +119,6 @@ __END__
 
 Spreadsheet::Perl::Lock - Lock support for Spreadsheet::Perl
 
-#~ =head1 SYNOPSIS
 =head1 TODO
 
 Locking functinos need some work to look unified!

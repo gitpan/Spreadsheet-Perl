@@ -8,7 +8,6 @@ use strict ;
 use warnings ;
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
 
 our @ISA = qw(Exporter) ;
 
@@ -19,23 +18,23 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw(  Ref ) ;
 our @EXPORT ;
 push @EXPORT, qw( Ref ) ;
 
-our $VERSION = '0.01' ;
+our $VERSION = '0.02' ;
 
 #-------------------------------------------------------------------------------
 
 sub Ref
 {
 my $self = shift ;
-my $information = shift ;
-
-confess "First argument to 'Ref' should be a description" unless '' eq ref $information ;
 
 if(defined $self && __PACKAGE__ eq ref $self)
 	{
+	my $information = shift ;
+
+	confess "First argument to 'Ref' should be a description" unless '' eq ref $information ;
+
 	my %references = @_ ;
 	
 	my %address_to_reference ;
@@ -65,7 +64,11 @@ if(defined $self && __PACKAGE__ eq ref $self)
 	}
 else	
 	{
-	my $reference = $self ;
+	my $information = $self ;
+
+	confess "First argument to 'Ref' should be a description" unless '' eq ref $information ;
+
+	my $reference = shift ;
 	
 	confess "Error: 'Ref' takes a  reference as argument" unless(defined $reference) ;
 	
@@ -85,6 +88,35 @@ else
 		}
 	}
 }
+
+#-------------------------------------------------------------------------------
+
+sub get_reference_description
+{
+my ($self, $address) = @_ ;
+
+my @information ;
+
+for my $current_address ($self->GetAddressList($address))
+	{
+	if(exists $self->{CELLS}{$current_address})
+		{
+		if(exists $self->{CELLS}{$current_address}{REF_SUB_INFO})
+			{
+			push @information,
+				$self->{CELLS}{$current_address}{REF_SUB_INFO} || '' ;
+			}
+		}
+	else
+		{
+		push @information, '' ;
+		}
+	}
+
+return @information ;
+}
+
+*REF_INFO = \&get_reference_description ;
 
 #-------------------------------------------------------------------------------
 1 ;
@@ -108,7 +140,7 @@ Spreadsheet::Perl::Reference - Reference access for Spreadsheet::Perl
   
 =head1 DESCRIPTION
 
-Part of Spreadsheet::Perl.
+Part of Spreadsheet::Perl. See "Scalar reference mapping" in main documentation
 
 =head1 AUTHOR
 

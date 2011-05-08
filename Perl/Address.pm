@@ -8,7 +8,6 @@ use strict ;
 use warnings ;
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
 
 our @ISA = qw(Exporter) ;
 
@@ -19,7 +18,6 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw( SetRangeName SetCellName SortCells) ;
 our @EXPORT ;
 push @EXPORT, qw( SortCells ConvertAdressToNumeric) ;
 
@@ -58,6 +56,7 @@ my $spreadsheet = '' ;
 
 if($address =~ /^([A-Z_]+!)(.+)/)
 	{
+	# reference to spreadsheet
 	$spreadsheet = $1 ;
 	$address = $2 ;
 	}
@@ -75,21 +74,21 @@ else
 	
 	if(defined $named_cell_range)
 		{
-		if($spreadsheet ne '' && $named_cell_range =~ /^([A-Z_]+!)/)
+		if($named_cell_range =~ /^([A-Z_]+!)(.+)/)
 			{
-			confess "adress '$address' contains a spreadsheeet name as do componants of address!" ;
+			if($spreadsheet ne '')
+				{	
+				confess "address '$address' contains multiple spreadsheet names !" ;
+				}
+
+			$spreadsheet = $1 ;
+			$named_cell_range = $2 ;
 			}
-			
+
 		($start_cell, $end_cell) = $named_cell_range =~ /^(.+):(.+)$/ ;
 		
 		unless(defined $start_cell)
 			{
-			if($named_cell_range =~ /^([A-Z_]+!)(.+)/)
-				{
-				$spreadsheet = $1 ;
-				$named_cell_range = $2 ;
-				}
-				
 			$start_cell = $end_cell = $named_cell_range ;
 			$is_cell++ ;
 			}
@@ -105,10 +104,9 @@ else
 
 if($is_cell)
 	{
-	#~ print "Canonizing '$spreadsheet$address' => '$spreadsheet$start_cell'\n" ;
 	if(wantarray)
 		{
-		return("$spreadsheet$start_cell", $is_cell, "$spreadsheet$start_cell", "$spreadsheet$end_cell") ;
+		return("$spreadsheet$start_cell", $is_cell, "$start_cell", "$end_cell") ;
 		}
 	else
 		{
@@ -117,10 +115,9 @@ if($is_cell)
 	}
 else
 	{
-	#~ print "Canonizing '$spreadsheet$address' => '$spreadsheet$start_cell:$end_cell'\n" ;
 	if(wantarray)
 		{
-		return("$spreadsheet$start_cell:$end_cell", $is_cell, "$spreadsheet$start_cell", "$spreadsheet$end_cell") ;
+		return("$spreadsheet$start_cell:$end_cell", $is_cell, "$start_cell", "$end_cell") ;
 		}
 	else
 		{
@@ -203,8 +200,7 @@ while (my($name, $address) = each %name_address)
 	{
 	#~ print "setting name '$name' to '$address'\n" ;
 	
-	croak "Error: Only uppercase Letters allowed in address names. '$name'" if $name !~ /^[A-Z_]+$/ ; 
-	
+	$name = uc($name) ;
 	$self->{NAMED_ADDRESSES}{$name} = $self->CanonizeAddress($address) ;
 	}
 }
@@ -301,7 +297,6 @@ for my $address (@addresses_definition)
 		{
 		/([A-Z@]+)\*/ && do
 			{
-			#~ $end_cell= "${1}10" ;
 			$end_cell= "${1}1" ;
 			last;
 			} ;
@@ -309,14 +304,12 @@ for my $address (@addresses_definition)
 		/\*([0-9]+)/ && do
 			{
 			$end_cell = "A${1}" ;
-			#~ $end_cell = "BB${1}" ;
 			last;
 			} ;
 			
 		/^\*$/ && do
 			{
 			$end_cell = 'A1' ;
-			#~ $end_cell = 'BB10' ;
 			last;
 			} ;
 		}
@@ -343,8 +336,7 @@ for my $address (@addresses_definition)
 			}
 		else
 			{
-			@x_list = ($end_x .. $start_x ) ;
-			@x_list = reverse @x_list ;
+			@x_list = reverse  ($end_x .. $start_x ) ;
 			}
 		
 		my @y_list ;
@@ -354,8 +346,7 @@ for my $address (@addresses_definition)
 			}
 		else
 			{
-			@y_list = ($end_y .. $start_y ) ;
-			@y_list = reverse @y_list ;
+			@y_list = reverse ($end_y .. $start_y ) ;
 			}
 			
 		for my $x (@x_list)
@@ -365,8 +356,13 @@ for my $address (@addresses_definition)
 				push @addresses, $spreadsheet . ConvertNumericToAddress($x, $y) ;
 				}
 			}
-			
-		print "GetAddressList '$address': " . (join ' - ', @addresses) . "\n" if($self->{DEBUG}{ADDRESS_LIST});
+
+		if($self->{DEBUG}{ADDRESS_LIST})
+			{
+			my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+			print $dh "GetAddressList '$address': " 
+				. (join ' - ', @addresses) . "\n"
+			}
 		}
 	}
 	
@@ -408,14 +404,59 @@ else
 
 #-------------------------------------------------------------------------------
 
+sub is_within_range
+{
+my ($self, $cell_address, $range) = @_ ;
+
+my ($range_canonized, $is_cell, $range_start_cell, $range_end_cell)
+	= $self->CanonizeAddress($range) ;
+
+if($cell_address=~ /^[A-Z_]+!(.+)/)
+	{
+	$cell_address = $1 ;
+	}
+
+my ($range_start_column, $range_start_row)
+	= $range_start_cell=~ /^([A-Z@]+)([0-9]+)$/ ;
+
+$range_start_column = FromAA($range_start_column) ;
+
+my ($range_end_column, $range_end_row)
+	= $range_end_cell=~ /^([A-Z@]+)([0-9]+)$/ ;
+
+$range_end_column = FromAA($range_end_column) ;
+
+my ($full_column, $column, $full_row, $row) 
+	= $cell_address=~ /^(\[?([A-Z@]+)\]?)(\[?([0-9]+)\]?)$/ ;
+
+my $column_index = FromAA($column) ;
+
+if
+	(
+	$column_index < $range_start_column
+	|| $column_index > $range_end_column
+	|| $row < $range_start_row
+	|| $row > $range_end_row
+	)
+	{
+	return 0 ;
+	}
+else
+	{
+	return 1 ; # within range
+	}
+}
+
+#-------------------------------------------------------------------------------
+
 sub OffsetAddress
 {
 # this function accept adresses that are fixed ex: [A1]
 
-my $self = shift ;
-my $address = shift ;
-my $column_offset = shift ;
-my $row_offset = shift ;
+my ($self, $address, $column_offset, $row_offset, $range) = @_ ;
+
+my $range_print = $range || 'none' ;
+#print "OffsetAddress: $address + $column_offset, $row_offset [$range_print] " ;
 
 my ($spreadsheet, $is_cell, $start_cell, $end_cell) = ('') ;
 
@@ -439,42 +480,71 @@ else
 		{
 		($address, $is_cell, $start_cell, $end_cell) = $self->CanonizeAddress($address) ;
 		
-		if($start_cell=~ /^([A-Z_]+!)(.+)/)
+		if($address =~ /^([A-Z_]+!)(.+)/)
 			{
 			$spreadsheet = $1 ;
-			$start_cell = $2 ;
-			}
-			
-		if($end_cell=~ /^([A-Z_]+!)(.+)/)
-			{
-			$spreadsheet = $1 ;
-			$end_cell = $2 ;
 			}
 		}
 	}
 
+my $offset_address ;
+
 if($is_cell)
 	{
-	return
+	if
 		(
-		$self->OffsetCellAddress($spreadsheet . $start_cell, $column_offset, $row_offset)
-		) ;
-	}
-else
-	{
-	my $lhs = $self->OffsetCellAddress($start_cell, $column_offset, $row_offset) ;
-	my $rhs = $self->OffsetCellAddress($end_cell, $column_offset, $row_offset) ;
-	
-	if(defined $lhs && defined $rhs)
+		! defined $range
+		|| $self->is_within_range($start_cell, $range)
+		)
 		{
-		return("$spreadsheet$lhs:$rhs") ;
+		$offset_address = $self->OffsetCellAddress
+					(
+					$spreadsheet . $start_cell,
+					$column_offset,
+					$row_offset
+					) ;
 		}
 	else
 		{
-		return ;
+		$offset_address = "$spreadsheet$start_cell" ;
 		}
 	}
+else
+	{
+	my $lhs = $start_cell ;
+	my $rhs = $end_cell ;
+
+	if
+		(
+		! defined $range
+		|| $self->is_within_range($lhs, $range)
+		)
+		{
+		$lhs = $self->OffsetCellAddress($start_cell, $column_offset, $row_offset) ;
+		}
+
+	if
+		(
+		! defined $range
+		|| $self->is_within_range($rhs, $range)
+		)
+		{
+		$rhs = $self->OffsetCellAddress($end_cell, $column_offset, $row_offset) ;
+		}
+
+	if(defined $lhs && defined $rhs)
+		{
+		$offset_address = ("$spreadsheet$lhs:$rhs") ;
+		}
+	#else
+		# reurn undef
+	}
+
+#print " => $offset_address\n" ;
+return $offset_address ;
 }
+
+#-------------------------------------------------------------------------------
 
 sub OffsetCellAddress
 {
@@ -548,6 +618,7 @@ return ($column2_index - $column1_index, $row2 - $row1) ;
 1 ;
 
 __END__
+
 =head1 NAME
 
 Spreadsheet::Perl::Address - Cell adress manipulation functions

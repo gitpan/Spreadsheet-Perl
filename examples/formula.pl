@@ -6,14 +6,11 @@ use warnings ;
 use Spreadsheet::Perl ;
 use Spreadsheet::Perl::Arithmetic ;
 
-Spreadsheet::Perl::SetBuiltin qw( log sin cos ) ;
+SetBuiltin qw( log sin cos ) ;
 
-tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
-my $ss = tied %ss ;
+my $ss = tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
 
 $ss{A9} = Formula('Sum(A1:A8) + 100 ') ;
-print "$ss{A9}\n" ;
-
 $ss{'A1:A8'} = RangeValues(1 .. 8) ;
 
 $ss->Formula

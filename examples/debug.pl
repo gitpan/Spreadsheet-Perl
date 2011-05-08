@@ -38,3 +38,4 @@ $ss->{DEBUG}{FETCH_TRIGGER_HANDLER} = sub {my ($ss, $address) = @_} ; # calls su
 $ss->{DEBUG}{STORE_TRIGGER}{'A1'}++ ; # displays a message when 'A1' is stored
 $ss->{DEBUG}{STORE_TRIGGER}{'A1'} = sub {my ($ss, $address) = @_} ; # calls the sub when 'A1' is stored
 $ss->{DEBUG}{STORE_TRIGGER_HANDLER} = sub {my ($ss, $address, $value) = @_} ; # calls sub when any trigger is stored and no specific sub exists
+

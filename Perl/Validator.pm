@@ -1,5 +1,4 @@
 
-#~ package Spreadsheet::Perl::Validator ;
 package Spreadsheet::Perl ;
 
 use 5.006 ;
@@ -9,7 +8,6 @@ use strict ;
 use warnings ;
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
 
 our @ISA = qw(Exporter) ;
 
@@ -21,7 +19,6 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw( Validator AddValidator ) ;
 our @EXPORT ;
 push @EXPORT, qw( Validator AddValidator ) ;
 

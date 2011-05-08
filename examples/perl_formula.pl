@@ -6,11 +6,9 @@ use warnings ;
 use Spreadsheet::Perl ;
 use Spreadsheet::Perl::Arithmetic ;
 
-tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
-my $ss = tied %ss ;
+my $ss = tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
 
 $ss{A9} = PerlFormula('$ss->Sum("A1:A8") + 100 ') ;
-print "$ss{A9}\n" ;
 
 $ss{'A1:A8'} = RangeValues(1 .. 8) ;
 print $ss->Dump() ; # show formula dependencies
@@ -33,3 +31,4 @@ $ss->PF
 	
 $ss->{DEBUG}{INLINE_INFORMATION}++ ;
 print $ss->DumpTable() ;
+

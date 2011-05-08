@@ -8,23 +8,18 @@ use strict ;
 use warnings ;
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
-
-our @ISA = qw(Exporter) ;
 
 our %EXPORT_TAGS = 
 	(
 	'all' => [ qw() ]
 	) ;
 
-our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
-
-#~ our @EXPORT = qw( Formula AddBuiltin GetBuiltin SetBuiltin) ;
-
 our @EXPORT ;
 push @EXPORT, qw( Formula AddBuiltin GetBuiltin SetBuiltin) ;
 
 our $VERSION = '0.03' ;
+
+#-------------------------------------------------------------------------------
 
 # The following code was contributed to Spreadsheet::Perl by Steffen Müller <SMUELLER>. 
 
@@ -318,11 +313,12 @@ return($serialized_data) ;
 
 }
 
-#-----------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 1 ;
 
 __END__
+
 =head1 NAME
 
 Spreadsheet::Perl::Formula - Formula support for Spreadsheet::Perl
@@ -348,3 +344,4 @@ If you find any value in this module, mail me!  All hints, tips, flames and wish
 are welcome at <nadim@khemir.net>.
 
 =cut
+

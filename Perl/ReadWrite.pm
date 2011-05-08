@@ -10,7 +10,6 @@ use Data::Dumper ;
 
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
 
 our @ISA = qw(Exporter) ;
 
@@ -21,7 +20,6 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw( Format AddFormat ) ;
 our @EXPORT ;
 push @EXPORT, qw( ) ;
 
@@ -65,7 +63,7 @@ my $file_name = shift ;
 
 my $ss_data = $ss->GeneratedWriteData() ;
 
-open(SS_OUT, ">", $file_name) or die qq[Can't open $file_name : $!] ;
+open(SS_OUT, ">", $file_name) or croak qq[Can't open $file_name : $!] ;
 print SS_OUT $ss_data ;
 close(SS_OUT) ;
 }

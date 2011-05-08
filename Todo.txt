@@ -1,15 +1,25 @@
 Spreadsheet::Perl
 =================
 
+PF should remember also add the line where it was used in the cell
+	this should be optional
+
+test function are_spreadsheet_values_equal
+
+cache the result of list context CanonizeAddress to speed up things
+
+code is not documented making the API difficult to grasp and use
+
+find a way to move the examples to tests
+
 function to show cell dependencies
 
 verification at load time of the formulas could be optional
+factorize formula code in STORE/FETCH, is it needed in STORE?
 
 default file format should be perl, writable too (dump streamer?)
 
 function definitions should be object specific, OK as class specific but a choice should exist
-
-range reading should be context specific. scalar => array ref. array => array
 
 debugging mode to show where the functions are called
 
@@ -23,23 +33,16 @@ row/column deletion:
 	callback or list of callbacks
 	when a row or column is deleted, all the cells with delete call back should have their CB called
 
-cell deletion:
-	#0.07 delete callback
-	should the row and column delete callback be called?
-	should the spreadsheet delete callback[s] be called
-
 What do we call before we clear the spreadsheet? rows or columns?
 
 DBI interface
 
 R1C1 reference in formulas => $ss{"+1,-3"}
 
-Insertion of rows and columns (=> formulas !!)
+Insertion of rows and columns (=> inter spreadsheet formulas !!)
 Deletion of rows and columns (=> formulas !!)
 Sorting (=> formulas !!)
 	option to invalidate all formulas containing a ref to the deleted row ...
-
-Delete and insert row should return a list a of cells which formula is changed and/or might return something diffrent
 
 Generate graphs, pies, ..
 

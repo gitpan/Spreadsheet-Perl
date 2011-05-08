@@ -26,6 +26,7 @@ our @EXPORT = qw( ) ;
 our $VERSION = '0.02' ;
 
 use Spreadsheet::Perl ;
+use Scalar::Util qw(looks_like_number) ;
 
 #-------------------------------------------------------------------------------
 
@@ -44,10 +45,10 @@ for my $address (@addresses)
 		
 		#~ if(exists $ss->{DEBUG_MODULE}{ARITHMETIC_SUM})
 			#~ {
-			#~ print "Sum: $current_address => $cell_value\n" ;
+			#~ print $self->{DEBUG}{ERROR_HANDLE} "Sum: $current_address => $cell_value\n" ;
 			#~ }
 		
-		$sum += $cell_value if (defined $cell_value &&  scalar($cell_value) == $cell_value) ; 
+		$sum += $cell_value if (defined $cell_value && looks_like_number($cell_value)) ; 
 		}
 	
 	}
@@ -56,6 +57,7 @@ return($sum) ;
 }
 
 DefineSpreadsheetFunction('Sum', \&Sum, undef, __PACKAGE__) ;
+DefineSpreadsheetFunction('SUM', \&Sum, undef, __PACKAGE__) ;
 
 #-------------------------------------------------------------------------------
 

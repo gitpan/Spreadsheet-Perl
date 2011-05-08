@@ -8,7 +8,6 @@ use strict ;
 use warnings ;
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
 
 our @ISA = qw(Exporter) ;
 
@@ -19,7 +18,6 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw( StoreFunction FetchFunction) ;
 our @EXPORT ;
 push @EXPORT, qw( StoreFunction FetchFunction StoreOnFetch DeleteFunction) ;
 
@@ -85,7 +83,7 @@ Spreadsheet::Perl::Function - Function support for Spreadsheet::Perl
   return($sum) ;
   }
 
-  $ss{A1} = Function(\&SumRowsAbove, $arg1, $arg2, ...)
+  $ss{A1} = FetchFunction(\&SumRowsAbove, $arg1, $arg2, ...)
   
 =head1 DESCRIPTION
 
@@ -104,3 +102,4 @@ If you find any value in this module, mail me!  All hints, tips, flames and wish
 are welcome at <nadim@khemir.net>.
 
 =cut
+

@@ -8,7 +8,6 @@ use strict ;
 use warnings ;
 
 require Exporter ;
-#~ use AutoLoader qw(AUTOLOAD) ;
 
 our @ISA = qw(Exporter) ;
 
@@ -19,11 +18,10 @@ our %EXPORT_TAGS =
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 
-#~ our @EXPORT = qw( Reset ) ;
 our @EXPORT ;
 push @EXPORT, qw( Reset ) ;
 
-our $VERSION = '0.10' ;
+our $VERSION = '0.11' ;
 
 use Spreadsheet::Perl::Address ;
 use Spreadsheet::Perl::Cache ;
@@ -34,7 +32,9 @@ use Spreadsheet::Perl::PerlFormula ;
 use Spreadsheet::Perl::Function ;
 use Spreadsheet::Perl::ASCIITable;
 use Spreadsheet::Perl::Html ;
+use Spreadsheet::Perl::InsertDelete ;
 use Spreadsheet::Perl::Lock ;
+use Spreadsheet::Perl::Label ;
 use Spreadsheet::Perl::QuerySet ;
 use Spreadsheet::Perl::Reference ;
 use Spreadsheet::Perl::RangeValues ;
@@ -284,7 +284,7 @@ if($is_cell)
 				
 			if(exists $current_cell->{FETCH_SUB}) # formula or fetch callback
 				{
-				$self->get_initial_value_from_perl_scalar($start_cell, $current_cell)  if(exists $current_cell->{REF_FETCH_SUB}) ;
+				$self->initial_value_from_perl_scalar($start_cell, $current_cell)  if(exists $current_cell->{REF_FETCH_SUB}) ;
 				
 				if($current_cell->{NEED_UPDATE} || ! exists $current_cell->{NEED_UPDATE} || ! exists $current_cell->{VALUE})
 					{
@@ -417,24 +417,40 @@ if($is_cell)
 				}
 			}
 		}
+
+	if($self->{DEBUG}{FETCH_VALUE})
+		{
+		my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+		print $dh "\t value: $value\n" ;
+		}
 		
 	return($value) ;
 	}
 else
 	{
+	# range requested
+	
 	my @values ;
+
 	for my $current_address ($self->GetAddressList($address))
 		{
 		push @values, $self->Get($current_address) ;
 		}
+
+	if($self->{DEBUG}{FETCH})
+		{
+		my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+		print $dh "END: Fetching range '$cell_or_range'\n" ;
+		}
+
 		
-	return(\@values) ;
+	return \@values ;
 	}
 }
 
 *Get = \&FETCH ;
 
-sub get_initial_value_from_perl_scalar
+sub initial_value_from_perl_scalar
 {
 # note that the scalar fetch mechanism is removed after the call to this sub
 
@@ -442,14 +458,17 @@ my ($self, $cell_address, $current_cell) = @_ ;
 
 if(exists $current_cell->{REF_FETCH_SUB})
 	{
-	#fetch initial value from reference
+	# value from reference will be shdowed by formula
 	if(exists $self->{DEBUG}{FETCH_TRIGGER}{$cell_address})
 		{
 		my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-		print $dh "  => Fetching *initial* cell '$cell_address' value from scalar reference.\n" ;
+		print $dh "  => Cell '$cell_address' value from scalar reference is shadowed by formula.\n" ;
 		}
 	
-	$current_cell->{VALUE} = $current_cell->{REF_FETCH_SUB}->($self, $cell_address) ;
+	$current_cell->{VALUE} = '# shadowed by formula' ;
+	
+	# the value from the scalar can be fetched with
+	# $current_cell->{REF_FETCH_SUB}->($self, $cell_address) ;
 	
 	delete $current_cell->{REF_FETCH_SUB} ;
 	delete $current_cell->{CACHE} ;
@@ -693,9 +712,6 @@ for my $current_address ($self->GetAddressList($address))
 				
 			/^Spreadsheet::Perl::Reference$/ && do
 				{
-				delete $current_cell->{STORE_SUB_ARGS} ;
-				delete $current_cell->{FETCH_SUB_ARGS} ;
-				
 				$current_cell->{IS_REFERENCE}  = 1 ;
 				$current_cell->{REF_SUB_INFO}  = $value->[0] ;
 				$current_cell->{REF_STORE_SUB} = $value->[1] ;
@@ -737,6 +753,17 @@ for my $current_address ($self->GetAddressList($address))
 				}
 			else
 				{
+				# storing a simple value removes formulas
+
+				delete $current_cell->{FORMULA} ;
+				delete $current_cell->{PERL_FORMULA} ;
+				delete $current_cell->{FETCH_SUB} ;
+				delete $current_cell->{FETCH_SUB_ARGS} ;
+				delete $current_cell->{GENERATED_FORMULA} ;
+				delete $current_cell->{ANCHOR} ;
+
+				$current_cell->{NEED_UPDATE} = 0 ;
+
 				$current_cell->{VALUE} = $value_to_store ;
 				}
 				
@@ -994,6 +1021,8 @@ Spreadsheet::Perl functionality:
 
 =item * Automatic formula offsetting
 
+=item * Insertion of rows and columns (no deletion yet)
+
 =item * Relative and fixed cell addresses
 
 =item * slice access
@@ -1010,9 +1039,7 @@ Look at the 'examples' directory for some examples.
 
 =head2 Why
 
-I found no spreadsheet modules on CPAN (I see a spreadsheet as a programming tool). The idea that it would be
-very easy to implement in perl kept going round in my head. I put the limit at 500 lines of code for a functional spreadsheet.
-It took a few days to get something viable and it was just under 5OO lines.
+I found no spreadsheet modules on CPAN (I see a spreadsheet as a programming tool).
 
 I you have an application that takes some input and does calculation on them, chances
 are that implementing it through a spreadsheet will make it more maintainable and easier to develop.
@@ -1020,7 +1047,7 @@ Here are the reasons (IMO) why:
 
 =over 2
 
-=item * Spreadsheet programming (SP) is data oriented and this is what programming should be more often.
+=item * Spreadsheet programming (SP) is data oriented and this is what programming should be.
 
 =item * SP is encapsulating. The processing is "hidden"behind the cell value in form of formulas.
 
@@ -1393,16 +1420,17 @@ Names must be upper case.
 
 =head1 LABELING ROW AND COLUMN HEADERS
 
-The spread cells are indexed from '1,1' which is 'A1' in baseAA. The column headers start at
-'A0' to 'ZZZZ0'. The row header start at '0,1' to '0,n'. You can either use the previous notation
-or use '@' to represent 0 in baseAA thus '@1' represents the header for row 1.
+	$ss{A0} = 'column A' ;
+	$ss{B0} = 'column B' ;
+	$ss{@1} = 'row 1' ;
+	$ss{@2} = 'row 2' ;
 
-  $ss{A0} = 'column 1' ;
-  
-  $ss{'@1'} = 'row 1' ; 
-  # or
-  $ss{'0,1'} = 'row 1' ;
+The subs B<label_column> and B<label_row> can also be used.
 
+	$ss->label_column('A' => "First column") ;
+	$ss->label_row(1 => 'row 1') ;
+	$ss->label_row(2 => 'row 2') ;
+	
 =head1 OTHER SPREADSHEET
 
 To use inter-spreadsheet formulas, you need to make the spreadsheet aware of the other spreadsheets by
@@ -1512,7 +1540,7 @@ DefineSpreadsheetFunction takes the following parameters:
 The sub will be passed a reference to the spreadsheet object as first argument. The other argument are those you
 pass to the function in your formula.
 
-=head3 Function modules
+=head3 Function collections
 
 If you implement more than a few formula functions, you may want to move those functions into a perl module.
 "use" Spreadsheet::Perl in your module and register your functions through B<DefineSpreadsheetFunction>.
@@ -1551,6 +1579,8 @@ B<Please contribute your functions to Spreadsheet::Perl>.
 =item * GetLastIndexes, returns the last column and the last row used
 
 =item * GetCellsToUpdate, returns the list of the cells needing update
+
+=back
 
 =head1 SETTING AND READING CELLS
 
@@ -1624,13 +1654,9 @@ to be a consensus about what standard format the formulas should use, I call tha
 
 =head4 Native format
 
-B<PerlFormula> and B<PF> (an alias to PerlFormula) take a string as argument. The string must be a valid Perl code.
+B<PerlFormula> and B<PF> take a string as argument. The string must be a valid Perl code.
 
-  $ss{'A1:A5'} = PerlFormula('$ss{"A2"}') ;
-
-  $ss{'A1'} = PerlFormula('ANY VALID PERL CODE') ;
-
-It is also possible to use B<PerlFormula> as a member function and define multiple formulas in one call
+B<PerlFormula> can be used as a member function and define multiple formulas in one call
 
   $ss->PerlFormula
   	(
@@ -1639,6 +1665,18 @@ It is also possible to use B<PerlFormula> as a member function and define multip
   	, 'B3:B5' => '$ss{A4} + $ss{A3}'
   	) ;
   	
+or it can used to set a cell or a cell range formula.
+
+  $ss{'A1:A5'} = PerlFormula('$ss{"A2"}') ;
+
+  $ss{'A1'} = PerlFormula('ANY VALID PERL CODE') ;
+
+When used with a cell or a cell range, extra user data can be passed
+
+  $ss{'A1'} = PF('PERL CODE', \$user_data, $more_user_date, 42, "something") ;
+
+The formulas can also be part of the Spreadsheet dump
+
   $ss->{DEBUG}{INLINE_INFORMATION}++ ; # show the formulas in the table dump
   print $ss->DumpTable() ;:
 
@@ -1654,7 +1692,7 @@ The following variables are available in the formula:
 
 =item * $cell, the address of the cell for which the formula is evaluated
 
-=back
+=item * @formula_arguments, extra user data passed to PF() in cell mode
 
 =back
 
@@ -1976,10 +2014,12 @@ B<Ref> can be called as attribute creator (as above) or as a spreadsheet member 
   $ss->Ref
 	(
 	'description',
-	A1      => \($struct->{something}), 
-	A2      => \$variable,
+	'A1'      => \($struct->{something}), 
+	'A2'      => \$variable,
 	'A3:A5' => \$variable
 	) ;
+
+$ss->get_reference_description('A1') or $ss->REF_INFO('A1') can be used to retrieve the description field of cell, eg, A1.
 
 A more complex example (based on examples/ref2.pl) which also show the usage of debug flags
 
@@ -2023,8 +2063,8 @@ A more complex example (based on examples/ref2.pl) which also show the usage of 
 		'A3' => \$struct->{result},
 		) ;
 
-	# set formulas over the perl scalars. the initial value is fetched from the perl scalar, then 
-	# the formulas are applied. dependencies and cyclic dependencies are handled 
+	# set formulas over the perl scalars.
+	
 	$ss->PerlFormula
 		(
 		'A2' => '$ss{A1} * 2',	
@@ -2077,10 +2117,9 @@ The output is the following (comments are added as an explanation):
 	Fetching cell 'A1'.
 	  => Fetching cell 'A1' value from scalar reference.
 	  
-	# A2, the value comes from the scalar but is used only to setup the cell
-	# the formula will take over
+	# A2, the value comes from the formula
 	Fetching cell 'A2'.
-	  => Fetching *initial* cell 'A2' value from scalar reference.
+	  => Cell 'A2' value from scalar reference shadowed by formula.
 	  
 	# run the formula, note that the formula is also displayed in the dump
 	Running Sub @ 'TEST!A2' formula: $ss{A1} * 2
@@ -2090,7 +2129,7 @@ The output is the following (comments are added as an explanation):
 	  
 	# A3, identic to A2  
 	Fetching cell 'A3'.
-	  => Fetching *initial* cell 'A3' value from scalar reference.
+	  => Cell 'A3' value from scalar reference shadowed by formula.
 	Running Sub @ 'TEST!A3' formula: $ss{A2} * 2
 	Fetching cell 'A2'.
 	
@@ -2257,8 +2296,17 @@ It returns a string containing the dump.
 
 =head2 Debug handle
 
-All debug output is done through the handle set in $ss{DEBUG}{HANDLE}. It is set to STDERR but could 
+All debug output is done through the handle set in $ss{DEBUG}{ERROR_HANDLE}. It is set to STDERR but could 
 be set to a file or other logging facilities.
+
+The handle can be used from withing formulas if necessary:
+
+  $ss{A9} = PerlFormula
+		('
+		my $dh = $ss->{DEBUG}{ERROR_HANDLE} ;
+		print $dh "Doing something\n" ;
+		$ss->Sum("A1:A7", "A8") ;
+		') ;
 
 =head2 Debug flags
 
@@ -2271,9 +2319,11 @@ The following flags exist:
   $ss->{DEBUG}{FETCHED}++ ; # counts how many times the cell is fetched
   $ss->{DEBUG}{STORED}++ ; # counts how many times the cell is stored
   
-  $ss->{DEBUG}{PRINT_FORMULA}++ ; # show the generated formulas
-  $ss->{DEBUG}{INLINE_INFORMATION}++ ; #inline cell information in the table dump
+  $ss->{DEBUG}{PRINT_FORMULA}++ ; # show the info about formula generation
+  $ss->{DEBUG}{PRINT_ORIGINAL_FORMULA}++ ; # inline original formula in the table dump
+  $ss->{DEBUG}{INLINE_INFORMATION}++ ; # inline cell information in the table dump
   
+
   $ss->{DEBUG}{DEFINED_AT}++ ; # show where the cell has been defined
   $ss->{DEBUG}{ADDRESS_LIST}++ ; # shows the generated address lists
   $ss->{DEBUG}{FETCH_FROM_OTHER}++ ; # show when an inter spreadsheet value is fetched
@@ -2284,6 +2334,7 @@ The following flags exist:
   $ss->{DEBUG}{VALIDATOR}++ ; # display calls to all validators in spreadsheet
   
   $ss->{DEBUG}{FETCH}++ ; # shows when a cell value is fetched
+  $self->{DEBUG}{FETCH_VALUE}++ ; # shows which value is fetched
   $ss->{DEBUG}{STORE}++ ; # shows when a cell value is stored
   $ss->{DEBUG}{FETCH_TRIGGER}{'A1'}++ ; # displays a message when 'A1' is fetched
   $ss->{DEBUG}{FETCH_TRIGGER}{'A1'} = sub {my ($ss, $address) = @_} ; # calls the sub when 'A1' is fetched
@@ -2301,7 +2352,7 @@ This flag 'family' is reserved for modules that are not part of the distribution
 
   if(exists $ss->{DEBUG_MODULE}{ARITHMETIC_SUM})
 	  {
-	  print "Sum: $current_address => $cell_value\n" ;
+	  print $ss->{DEBUG}{ERROR_HANDLE} "Sum: $current_address => $cell_value\n" ;
 	  }
 
 =head1 TODO
@@ -2325,8 +2376,6 @@ Here are some of the things that I find missing, this doesn't mean all are good 
 
 =item * Arithmetic functions (only Sum is implemented), statistic functions
 
-=item * example of interface to the Inline module so you can write real fast functions in C
-
 =item * printing, exporting
 
 =item * importing from other spreadsheets
@@ -2337,15 +2386,13 @@ Here are some of the things that I find missing, this doesn't mean all are good 
 
 =over 4
 
-=item * Insertion of rows and columns
-
 =item * Deletion of rows and columns
 
 =item * Sorting
 
 =back
 
-=item * a GUI (curses, tk, wxWindows, cgi, Prima) would be great!
+=item * a complete GUI (Prima example exists)
 
 =item * a nice logo :-)
 
