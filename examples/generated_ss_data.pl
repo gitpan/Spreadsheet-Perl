@@ -18,6 +18,7 @@ return("Nadim") ;
 DSF
 
 use Spreadsheet::Perl::Arithmetic ;
+use Spreadsheet::Perl::Arithmetic ;
 
 #-------------------------------------------------------------------------------
 # spreadsheet data, a hash reference
@@ -33,6 +34,7 @@ CACHE => 1,
 DEBUG => {
           'FETCH_TRIGGER' => {},
           'STORE_TRIGGER' => {},
+          'INLINE_INFORMATION' => 1,
           'ERROR_HANDLE' => \*::STDERR
         },
 MESSAGE => {

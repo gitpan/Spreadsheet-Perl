@@ -54,7 +54,7 @@ sub Recalculate
 {
 my $self = shift ;
 
-for my $cell_name (keys %{$self->{CELLS}})
+for my $cell_name (SortCells keys %{$self->{CELLS}})
 	{
 	if(exists $self->{CELLS}{$cell_name}{FETCH_SUB})
 		{
@@ -309,28 +309,54 @@ if($is_cell)
 			{
 			# definition line?
 			
-			$cell_info .= $self->{CELLS}{$address}{FORMULA}[1] . " =>\n" if $self->{DEBUG}{PRINT_ORIGINAL_FORMULA} ;
-			$cell_info .= $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
+			$cell_info .= "OF: " . $self->{CELLS}{$address}{FORMULA}[1] . " =>\n" if $self->{DEBUG}{PRINT_ORIGINAL_FORMULA} ;
+			$cell_info .= "F: " . $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
 			}
 			
 		if(exists $self->{CELLS}{$address}{PERL_FORMULA})
 			{
 			# definition line?
 			
-			$cell_info .= $self->{CELLS}{$address}{PERL_FORMULA}[1] . " =>\n" if $self->{DEBUG}{PRINT_ORIGINAL_FORMULA} ;
-			$cell_info .= $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
+			$cell_info .= "OPF: " . $self->{CELLS}{$address}{PERL_FORMULA}[1] . " =>\n" if $self->{DEBUG}{PRINT_ORIGINAL_FORMULA} ;
+			$cell_info .= "PF: " . $self->{CELLS}{$address}{GENERATED_FORMULA}  . "\n" ;
 			}
 			
 		if(exists $self->{CELLS}{$address}{FETCH_SUB_INFO})
 			{
 			$cell_info .= "FetchSub: '$self->{CELLS}{$address}{FETCH_SUB_INFO}'.\n" ;
 			}
+
+		if(exists $self->{CELLS}{$address}{DEPENDENT})
+			{
+			if($self->{DEBUG}{PRINT_DEPENDENT_LIST})
+				{
+				for(keys %{$self->{CELLS}{$address}{DEPENDENT}})
+					{
+					$cell_info .= "dependent: $_\n" ;
+					}
+				}
+			}
+
+		if(exists $self->{CELLS}{$address}{EVAL_OK})
+			{
+			if($self->{DEBUG}{PRINT_FORMULA_EVAL_STATUS})
+				{
+				if($self->{CELLS}{$address}{EVAL_OK} == 0 )
+					{
+					$cell_info .= DumpTree($self->{CELLS}{$address}{EVAL_DATA}, 'eval error:', USE_ASCII => 1) ;
+					}
+				elsif(exists $self->{CELLS}{$address}{EVAL_DATA}{warnings})
+					{
+					$cell_info .= DumpTree($self->{CELLS}{$address}{EVAL_DATA}{warnings}, 'eval warnings:', USE_ASCII => 1, DISPLAY_ADDRESS => 0) ;
+					}
+				}
+			}
 		
 		return($cell_info) ;
 		}
 	else
 		{
-		return("#VC\n") ;
+		return($self->{MESSAGE}{VIRTUAL_CELL} . "\n") ;
 		}
 	}
 else

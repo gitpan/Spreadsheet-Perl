@@ -21,7 +21,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } ) ;
 our @EXPORT ;
 push @EXPORT, qw( Reset ) ;
 
-our $VERSION = '0.11' ;
+our $VERSION = '0.12' ;
 
 use Spreadsheet::Perl::Address ;
 use Spreadsheet::Perl::Cache ;
@@ -52,18 +52,22 @@ return
 	, CACHE               => 1
 	, AUTOCALC            => 0
 	, OTHER_SPREADSHEETS  => {}
-	, DEBUG               => { ERROR_HANDLE => \*STDERR }
+	, DEBUG               => {
+								ERROR_HANDLE => \*STDERR,
+								PRINT_FORMULA_ERROR => 1,
+							}
 	
 	, VALIDATORS          => [['Spreadsheet lock validator', \&LockValidator]]
 	, ERROR_HANDLER       => undef # user registred sub
 	, MESSAGE             => 
 				{
-				ERROR => '#error'
-				, NEED_UPDATE => "#need update"
+				ERROR => '#ERROR'
+				, NEED_UPDATE => '#NEED UPDATE'
+				, VIRTUAL_CELL => '#VC'
+				, ROW_PREFIX => 'R-' 
 				}
 				
 	, DEPENDENT_STACK     => []
-	
 	, CELLS               => {}
 	) ;
 }
@@ -151,14 +155,23 @@ if(defined $ss_reference)
 			print $dh $self->GetName() . " Fetching from spreadsheet '$original_address'.\n" ;
 			}
 			
-		#handle inter spreadsheet formula references
-		my $have_stack = (exists $self->{DEPENDENT_STACK} && @{$self->{DEPENDENT_STACK}}) ;
-		push @{$ss_reference->{DEPENDENT_STACK}}, @{$self->{DEPENDENT_STACK}}[-1] if($have_stack) ;
-			
+		#handle inter spreadsheet dependency tracking and formula references
+		if(exists $self->{DEPENDENCY_STACK})
+			{
+			$ss_reference->{DEPENDENCY_STACK} = $self->{DEPENDENCY_STACK} ;
+			$ss_reference->{DEPENDENCY_STACK_LEVEL} = $self->{DEPENDENCY_STACK_LEVEL} ;
+			$ss_reference->{DEPENDENCY_STACK_NO_CACHE} = $self->{DEPENDENCY_STACK_NO_CACHE} ;
+			}
+
+		# all spreadsheets reference the same DEPENDENT_STACK
+		$ss_reference->{DEPENDENT_STACK} = $self->{DEPENDENT_STACK} ;
+		
 		my $cell_value = $ss_reference->Get($address) ;
 		
-		pop @{$ss_reference->{DEPENDENT_STACK}} if($have_stack);
-		
+		delete $ss_reference->{DEPENDENCY_STACK} ;
+		delete $ss_reference->{DEPENDENCY_STACK_LEVEL} ;
+		delete $ss_reference->{DEPENDENCY_STACK_NO_CACHE} ;
+
 		return($cell_value) ;
 		}
 	}
@@ -183,7 +196,7 @@ if($self->{DEBUG}{FETCH})
 	
 if($is_cell)
 	{
-	my $value ;
+	my ($value, $evaluation_ok, $evaluation_type, $evaluation_data) ;
 	
 	#trigger
 	if(exists $self->{DEBUG}{FETCH_TRIGGER}{$start_cell})
@@ -221,64 +234,72 @@ if($is_cell)
 				$current_cell->{FETCHED}++ ;
 				}
 				
-			# circular deoendency checking
-			my $caller ;
-			
+			# circular dependency checking
 			if(exists $current_cell->{CYCLIC_FLAG})
 				{
+				if(exists $self->{DEPENDENCY_STACK})
+					{
+					my $level = '   ' x $self->{DEPENDENCY_STACK_LEVEL} ; 
+					$self->{DEPENDENCY_STACK_LEVEL}++ ;
+
+					my $name = ($self->GetName() || "$self") . '!' ;
+
+					push @{$self->{DEPENDENCY_STACK}}, "$level#CYCLIC $name$start_cell" ;
+					}
+
 				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
 				
-				push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
-				print $dh $self->DumpDependentStack() ;
+				push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, $self->GetName()] ;
+				print $dh $self->DumpDependentStack("Cyclic dependency while fetching '$start_cell'") ;
 				
+				my @dump ;
+
+				for my $dependent (@{$self->{DEPENDENT_STACK}})
+					{
+					my ($spreadsheet, $address, $name) = @$dependent ;
+					push @dump, "$name!$address" ;
+					}
+
 				pop @{$self->{DEPENDENT_STACK}} ;
-				
-				die "Found cyclic dependencies!" ;
+
+				# Todo: is there some cleanup to do before calling die?
+				die bless {cycle => \@dump}, 'Cyclic dependency' ;
 				}
 			else
 				{
 				$current_cell->{CYCLIC_FLAG}++ ;
 				}
-			
+		
+			if(exists $self->{DEPENDENCY_STACK})
+				{
+				my $level = '   ' x $self->{DEPENDENCY_STACK_LEVEL} ; 
+				$self->{DEPENDENCY_STACK_LEVEL}++ ;
+
+				my $name = ($self->GetName() || "$self") . '!' ;
+
+				push @{$self->{DEPENDENCY_STACK}}, "$level$name$start_cell" ;
+				}
+
 			$self->FindDependent($current_cell, $start_cell) ;
-			push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
+			push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, $self->GetName()] ;
 			
-			if($self->{DEBUG}{DEPENDENT_STACK}) #! TODO: dump stack on specific cells
+			if($self->{DEBUG}{DEPENDENT_STACK_ALL} || $self->{DEBUG}{DEPENDENT_STACK}{$start_cell})
 				{
 				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-				print $dh $self->DumpDependentStack() ;
+				print $dh $self->DumpDependentStack("Fetching '" . $self->GetName() . "!$start_cell'") ;
 				}
 				
 			# formula directly set into cells must get "compiled"
+			# IE, when data is directly loaded from external file
 			if(exists $current_cell->{PERL_FORMULA} && ! exists $current_cell->{FETCH_SUB})
 				{
-				my $formula = $current_cell->{PERL_FORMULA} ;
-				
-				$current_cell->{NEED_UPDATE} = 1 ;
-				($current_cell->{FETCH_SUB}, $current_cell->{GENERATED_FORMULA}) = GeneratePerlFormulaSub
-															(
-															  $self
-															, $address
-															, $address
-															, $formula->[1]
-															, (@$formula)[2 .. (@$formula - 1)]
-															) ;
+				die "case to be handled!\n" ;
 				}
 			else
 				{
 				if(exists $current_cell->{FORMULA} && ! exists $current_cell->{FETCH_SUB})
 					{
-					my $formula = $current_cell->{FORMULA} ;
-					
-					$current_cell->{NEED_UPDATE} = 1 ;
-					($current_cell->{FETCH_SUB}, $current_cell->{GENERATED_FORMULA}) = GenerateFormulaSub
-															(
-															  $self
-															, $address
-															, $address
-															, $formula->[1]
-															, (@$formula)[2 .. (@$formula - 1)]
-															) ;
+					die "case to be handled!\n" ;
 					}
 				}
 				
@@ -286,7 +307,13 @@ if($is_cell)
 				{
 				$self->initial_value_from_perl_scalar($start_cell, $current_cell)  if(exists $current_cell->{REF_FETCH_SUB}) ;
 				
-				if($current_cell->{NEED_UPDATE} || ! exists $current_cell->{NEED_UPDATE} || ! exists $current_cell->{VALUE})
+				if
+					(
+					$current_cell->{NEED_UPDATE} 
+					|| ! exists $current_cell->{NEED_UPDATE} 
+					|| ! exists $current_cell->{VALUE}
+					|| exists $self->{DEPENDENCY_STACK_NO_CACHE} 
+					)
 					{
 					if($self->{DEBUG}{FETCH_SUB})
 						{
@@ -305,18 +332,20 @@ if($is_cell)
 							print $dh " formula: $current_cell->{PERL_FORMULA}[1]" ;
 							}
 							
-						print $dh " defined at '@{$current_cell->{DEFINED_AT}}}'" if(exists $current_cell->{DEFINED_AT}) ;
+						print $dh " defined at '@{$current_cell->{DEFINED_AT}}'" if(exists $current_cell->{DEFINED_AT}) ;
 						print $dh "\n" ;
 						}
-						
+#TODO!!!!  next section should be in eval and formula should generate an exception. this is needed so a failed formula doesn't update NEED_UPDATE state nor saves the erroneous value trought STORE_ON_FETCH or a perl scalar. Although I am not sure. Maybe it is better to store the erroneous values if they are descriptive enought so it is clear that the values are not in synch.	
 					if(exists $current_cell->{FETCH_SUB_ARGS} && @{$current_cell->{FETCH_SUB_ARGS}})
 						{
-						$value = ($current_cell->{FETCH_SUB})->($self, $start_cell, @{$current_cell->{FETCH_SUB_ARGS}}) ;
+						($value, $evaluation_ok, $evaluation_type, $evaluation_data)
+							= ($current_cell->{FETCH_SUB})->($self, $start_cell, @{$current_cell->{FETCH_SUB_ARGS}}) ;
 						}
 						
 					else
 						{
-						$value = ($current_cell->{FETCH_SUB})->($self, $start_cell) ;
+						($value, $evaluation_ok, $evaluation_type, $evaluation_data)
+							= ($current_cell->{FETCH_SUB})->($self, $start_cell) ;
 						}
 						
 					if(exists $current_cell->{REF_STORE_SUB} && exists $current_cell->{STORE_ON_FETCH})
@@ -335,16 +364,41 @@ if($is_cell)
 							$current_cell->{STORE_SUB}->($self, $start_cell, $value) ;
 							}
 						}
+						
+					if($self->{DEBUG}{PRINT_FORMULA_ERROR} && $evaluation_ok == 0)
+						{
+						$value .= " ($evaluation_type)" ;
+						}
+
+					$current_cell->{EVAL_TYPE} = $evaluation_type ;
+					$current_cell->{EVAL_OK} = $evaluation_ok ;
+					$current_cell->{EVAL_DATA} = $evaluation_data ;
 					
 					# handle caching
 					if((! $self->{CACHE}) || (exists $current_cell->{CACHE} && (! $current_cell->{CACHE})))
 						{
 						delete $current_cell->{VALUE} ;
+						$current_cell->{NEED_UPDATE} = 1 ;
 						}
 					else
 						{
 						$current_cell->{VALUE} = $value ;
 						$current_cell->{NEED_UPDATE} = 0 ;
+						}
+
+					if(@{$self->{DEPENDENT_STACK}} != 1)
+						{
+						# catch exception at cell that started computation
+						unless ($evaluation_ok)
+							{
+							#Todo: cleanup automatically
+							$self->{DEPENDENCY_STACK_LEVEL}-- if exists $self->{DEPENDENCY_STACK_LEVEL} ;
+					
+							pop @{$self->{DEPENDENT_STACK}} ;
+							delete $current_cell->{CYCLIC_FLAG} ;
+
+							die bless {spreadsheet => $self, cell => $start_cell}, 'Invalid dependency cell' ;
+							}
 						}
 					}
 				else
@@ -366,6 +420,7 @@ if($is_cell)
 					$current_cell->{VALUE} = $current_cell->{REF_FETCH_SUB}->($self, $start_cell) ;
 					}
 					
+				# Todo: shouldn't we handle cache here too?!
 				if(exists $current_cell->{VALUE})
 					{
 					$value = $current_cell->{VALUE} ;
@@ -375,6 +430,8 @@ if($is_cell)
 					$value = undef ;
 					}
 				}
+
+			$self->{DEPENDENCY_STACK_LEVEL}-- if exists $self->{DEPENDENCY_STACK_LEVEL} ;
 				
 			pop @{$self->{DEPENDENT_STACK}} ;
 			delete $current_cell->{CYCLIC_FLAG} ;
@@ -382,17 +439,27 @@ if($is_cell)
 		}
 	else
 		{
+		# cell has never been accessed before
+		# not even to set a formula or a dependency list in it
+		if(exists $self->{DEPENDENCY_STACK})
+			{
+			my $level = '   ' x $self->{DEPENDENCY_STACK_LEVEL} ; 
+			my $name = ($self->GetName() || "$self") . '!' ;
+
+			push @{$self->{DEPENDENCY_STACK}}, "$level$name$start_cell" ;
+			}
+
 		if(@{$self->{DEPENDENT_STACK}})
 			{
 			$self->{CELLS}{$start_cell} = {} ; # create the cell to hold the dependent
 			$self->FindDependent($self->{CELLS}{$start_cell}, $start_cell) ;
 		
-			if($self->{DEBUG}{DEPENDENT_STACK})
+			if($self->{DEBUG}{DEPENDENT_STACK_ALL} || $self->{DEBUG}{DEPENDENT_STACK}{$start_cell})
 				{
-				push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, , $self->GetName()] ;
+				push @{$self->{DEPENDENT_STACK}}, [$self, $start_cell, $self->GetName()] ;
 				
 				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-				print $dh $self->DumpDependentStack() ;
+				print $dh $self->DumpDependentStack("Fetching '" . $self->GetName() . "!$start_cell' (virtual cell)") ;
 				
 				pop @{$self->{DEPENDENT_STACK}} ;
 				}
@@ -409,7 +476,7 @@ if($is_cell)
 			{
 			if($column == 0)
 				{
-				$value = $row ;
+				$value = $self->{MESSAGE}{ROW_PREFIX} . $row ;
 				}
 			else
 				{
@@ -475,6 +542,27 @@ if(exists $current_cell->{REF_FETCH_SUB})
 	$current_cell->{STORE_ON_FETCH}++ ;
 	}
 }
+			
+sub GetAllDependencies
+{
+my ($self, $cell_address, $do_not_use_cache) = @_ ;
+
+# DEPENDENCY_STACK will hold the address of all the 
+# cells accessed while accessing $cell_address
+$self->{DEPENDENCY_STACK} = [] ;
+$self->{DEPENDENCY_STACK_LEVEL} = -1 ;
+$self->{DEPENDENCY_STACK_NO_CACHE}++ if $do_not_use_cache ;
+
+$self->Get($cell_address) ;
+
+my $all_dependencies = $self->{DEPENDENCY_STACK} ;
+
+delete $self->{DEPENDENCY_STACK} ;
+delete $self->{DEPENDENCY_STACK_LEVEL} ;
+delete $self->{DEPENDENCY_STACK_NO_CACHE} ;
+
+return $all_dependencies ;
+}
 
 sub FindDependent
 {
@@ -484,17 +572,12 @@ if(exists $self->{DEPENDENT_STACK} && @{$self->{DEPENDENT_STACK}})
 	{
 	my $dependent = @{$self->{DEPENDENT_STACK}}[-1] ;
 	my ($spreadsheet, $cell_name) = @$dependent ;
-	my $dependent_name = "$spreadsheet, $cell_name" ;
+	my $dependent_name = $spreadsheet->GetName() . "!$cell_name" ;
 	
 	if($self->{DEBUG}{DEPENDENT})
 		{
 		$current_cell->{DEPENDENT}{$dependent_name}{DEPENDENT_DATA} = $dependent ;
 		$current_cell->{DEPENDENT}{$dependent_name}{COUNT}++ ;
-		
-		#~ $current_cell->{DEPENDENT}{$dependent_name}{FORMULA} = $spreadsheet->{CELLS}{$cell_name}{GENERATED_FORMULA} ;
-		# above can be computed on the fly when debugging
-		# this paragraph should be deleted when version 0.10 is reached
-		
 		}
 	else
 		{
@@ -591,8 +674,6 @@ for my $current_address ($self->GetAddressList($address))
 	
 	unless(defined $value && ref $value =~ /^Spreadsheet::Perl/)
 		{
-		#~ my @row_validators ;
-		#~ my @column_validators ;
 		my $cell_validators = $current_cell->{VALIDATORS} if(exists $current_cell->{VALIDATORS}) ;
 		
 		for my $validator_data (@{$self->{VALIDATORS}}, @$cell_validators)
@@ -607,7 +688,9 @@ for my $current_address ($self->GetAddressList($address))
 		
 	if($value_is_valid)
 		{
-		$self->MarkDependentForUpdate($current_cell) ;
+		$self->MarkDependentForUpdate($current_cell, $address) ;
+		$self->InvalidateCellInDependent($current_address) ;
+
 		$current_cell->{DEFINED_AT} = [caller] if(exists $self->{DEBUG}{DEFINED_AT}) ;
 		
 		for (ref $value)
@@ -772,11 +855,16 @@ for my $current_address ($self->GetAddressList($address))
 				$current_cell->{REF_STORE_SUB}->($self, $current_address, $value_to_store) ;
 				}
 			}
-			
+		
 		if($self->{AUTOCALC} && exists $current_cell->{DEPENDENT} && $current_cell->{DEPENDENT})
 			{
-			# we could show the recalculation time if some debug flag was set
 			$self->Recalculate() ;
+			}
+
+		if(exists $self->{DEBUG}{RECORD_STORE_ALL} || exists $self->{DEBUG}{RECORD_STORE}{$current_address})
+			{	
+			use Data::TreeDumper::Utils ;
+			push @{$current_cell->{STORED_AT}}, Data::TreeDumper::Utils::get_caller_stack ;
 			}
 		}
 	else
@@ -788,32 +876,56 @@ for my $current_address ($self->GetAddressList($address))
 
 *Set = \&STORE ;
 
+#-------------------------------------------------------------------------------
+
 sub MarkDependentForUpdate
 {
-my ($self, $current_cell, $level) = @_ ;
+my ($self, $current_cell, $cell_name, $level) = @_ ;
 
 $level ||= 1 ;
 
 return unless exists $current_cell->{DEPENDENT} ;
 
+push @{$self->{DEPENDENT_STACK}}, [$self, $cell_name, $self->GetName()] ;
+
+if(exists $current_cell->{CYCLIC_FLAG})
+	{
+	my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+
+	my $full_cell_name = $self->GetName() . '!' . $cell_name ; 
+	print $dh $self->DumpDependentStack("Cyclic dependency at '$full_cell_name' while marking cells for update\n") ;
+
+	return ;
+	}
+
+$current_cell->{CYCLIC_FLAG}++ ;
+
 for my $dependent_name (keys %{$current_cell->{DEPENDENT}})
 	{
+	if($level == 1 && (exists $self->{DEBUG}{MARK_ALL_DEPENDENT} || exists $self->{DEBUG}{MARK_DEPENDENT}{$cell_name}))
+		{
+		my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
+		my $spreadsheet_name = $self->GetName() || "$self" ;
+		print $dh "$spreadsheet_name: '$cell_name' updated\n" ;
+		}
+
 	my $dependent = $current_cell->{DEPENDENT}{$dependent_name}{DEPENDENT_DATA} ;
 	my ($spreadsheet, $cell_name) = @$dependent ;
 	
 	if(exists $spreadsheet->{CELLS}{$cell_name})
 		{
-		if( exists $current_cell->{CACHE} && $current_cell->{CACHE} == 0)
+		if(exists $current_cell->{CACHE} && $current_cell->{CACHE} == 0)
 			{
 			$spreadsheet->{CELLS}{$cell_name}{NEED_UPDATE}++ ;
 			
 			if(exists $self->{DEBUG}{MARK_ALL_DEPENDENT} || exists $self->{DEBUG}{MARK_DEPENDENT}{$cell_name})
 				{
 				my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-				print $dh ('   ' x $level) . "'$cell_name' needs update\n" ;
+				my $spreadsheet_name = $self->GetName() || "$self" ;
+				print $dh ('   ' x $level) . "$spreadsheet_name: '$cell_name' needs update\n" ;
 				}
 			
-			$self->MarkDependentForUpdate($spreadsheet->{CELLS}{$cell_name}, $level+1) ;
+			$spreadsheet->MarkDependentForUpdate($spreadsheet->{CELLS}{$cell_name}, $cell_name, $level+1) ;
 			}
 		else
 			{
@@ -824,10 +936,10 @@ for my $dependent_name (keys %{$current_cell->{DEPENDENT}})
 				if(exists $self->{DEBUG}{MARK_ALL_DEPENDENT} || exists $self->{DEBUG}{MARK_DEPENDENT}{$cell_name})
 					{
 					my $dh = $self->{DEBUG}{ERROR_HANDLE} ;
-					print $dh ('   ' x $level) . "'$cell_name' needs update\n" ;
+					my $spreadsheet_name = $spreadsheet->GetName() || "$self" ;
+					print $dh ('   ' x $level) . "$spreadsheet_name: '$cell_name' needs update\n" ;
 					}
-			
-				$self->MarkDependentForUpdate($spreadsheet->{CELLS}{$cell_name}, $level+1) ;
+				$spreadsheet->MarkDependentForUpdate($spreadsheet->{CELLS}{$cell_name}, $cell_name, $level+1) ;
 				}
 			else
 				{
@@ -838,6 +950,31 @@ for my $dependent_name (keys %{$current_cell->{DEPENDENT}})
 	else
 		{
 		delete $current_cell->{DEPENDENT}{$dependent_name} ;
+		}
+	}
+
+pop @{$self->{DEPENDENT_STACK}} ;
+
+delete $current_cell->{CYCLIC_FLAG} ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub InvalidateCellInDependent
+{
+
+my ($self, $cell_address) = @_ ;
+
+my $dependent_name = $self->GetName() . '!' . $cell_address ;
+
+for my $current_address ($self->GetCellList())
+	{
+	if(exists $self->{CELLS}{$current_address}{DEPENDENT})
+		{
+		if(exists $self->{CELLS}{$current_address}{DEPENDENT}{$dependent_name})
+			{
+			delete $self->{CELLS}{$current_address}{DEPENDENT}{$dependent_name} ;
+			}
 		}
 	}
 }
@@ -855,11 +992,19 @@ for my $current_address ($self->GetAddressList($address))
 		{
 		if($self->{CELLS}{$current_address}{DELETE_SUB}->($self, $current_address, @{$self->{CELLS}{$current_address}{DELETE_SUB_ARGS}}))
 			{
+			$self->MarkDependentForUpdate($self->{CELLS}{$current_address}, $current_address) ;
+
+			$self->InvalidateCellInDependent($current_address) ;
+
 			delete $self->{CELLS}{$current_address} ;
 			}
 		}
 	else
 		{
+		$self->MarkDependentForUpdate($self->{CELLS}{$current_address}, $current_address) ;
+		
+		$self->InvalidateCellInDependent($current_address) ;
+
 		delete $self->{CELLS}{$current_address} ;
 		}
 	}
@@ -870,7 +1015,8 @@ sub CLEAR
 my $self    = shift ;
 my $address = shift ;
 
-delete $self->{CELLS} ; # must call all set functions! and delete? functions?
+delete $self->{CELLS} ; 
+# Todo: must call all set functions! and delete? functions? !!!!
 }
 
 sub EXISTS   
@@ -1021,7 +1167,7 @@ Spreadsheet::Perl functionality:
 
 =item * Automatic formula offsetting
 
-=item * Insertion of rows and columns (no deletion yet)
+=item * Insertion of rows and columns (doesn't support interspreadsheet formulas)
 
 =item * Relative and fixed cell addresses
 
@@ -1033,13 +1179,13 @@ Spreadsheet::Perl functionality:
 
 =back
 
-Look at the 'examples' directory for some examples.
+Lots of examples in the 'examples' directory.
 
 =head1 DRIVING FORCE
 
 =head2 Why
 
-I found no spreadsheet modules on CPAN (I see a spreadsheet as a programming tool).
+I found no spreadsheet modules on CPAN.
 
 I you have an application that takes some input and does calculation on them, chances
 are that implementing it through a spreadsheet will make it more maintainable and easier to develop.
@@ -1066,27 +1212,13 @@ visual programming but still fit spreadsheets as they are often GUI based)
 
 =back
 
-For a more technical insight check:
-
-L<http://www.cs.uno.edu/~markus/02_Courses/past/csci6990/6990.03_Spreadsheet.ppt.pdf>
-
-The Spreadsheet FAQ might be of use:
-
-L<http://www.faqs.org/faqs/spreadsheets/faq/>
-
-and an interresting curiosa:
-
-L<http://www.uq.net.au/detective/>
-
 =head2 How
 
 I want B<Spreadsheets::Perl> to:
 
 =over 2
 
-=item * Be Perl, be only Perl
-
-=item * Be easy to develop, I try to implement nothing that is already there
+=item * Be very Perlish
 
 =item * Be easy to expand
 
@@ -1102,8 +1234,7 @@ spreadsheet functions are accessed through the tied object.
 =head2 Simple creation
 
   use Spreadsheet::Perl ;
-  tie my %ss, "Spreadsheet::Perl" ; 
-  my $ss = tied %ss ; # needed to access the spreadsheet functions.
+  my $ss = tie my %ss, "Spreadsheet::Perl" ; 
 
 =head2 Setting up data
 
@@ -1169,6 +1300,18 @@ spreadsheet functions are accessed through the tied object.
   use Spreadsheet::Perl ;
   tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
   %ss = do "ss_setup.pl" or confess "Couldn't read setup file 'ss_setup.pl'" ;
+
+
+=head2 insertion and deletion of rows and columns
+
+Right now, SS::P will B<ONLY> properly handle insertion/deletion
+within a single spreadsheet. That is, if you have multiply linked
+spreadsheets, do not use insertion/deletion. This is B<not> automatically checked!
+
+This is a temporary limitation and it will be removed.
+
+If you use a spreadsheet that does not reference another spreadsheet, using
+insertion/deletion will update Perl formulas and dependencies just fine.
 
 =head2 dumping a spreadsheet
 
@@ -1363,6 +1506,14 @@ If there is no screen width available (redirecting to a file for example) B<78> 
   
 You can set the 'noPageCount' option if you don't want the page count.
 
+Note:
+If $ss->{DEBUG}{PRINT_DEPENDENT_LIST} is set, the cells depending
+on a specific cell are listed in the inline information ( a reverse
+dependency list)
+
+To make sure the dependent list is up to date before display,
+Recalculate() is called before dumping the spreadsheet.
+
 See B<Text::ASCIITable>.
 
 =head1 CELL and RANGE: ADDRESSING, NAMING
@@ -1417,6 +1568,10 @@ It is possible to give a name to a cell or to a range:
   print  "First range: @{$ss{FIRST_RANGE}}\n" ;
 
 Names must be upper case.
+
+Note that, for the moment, column/row insertion and deletion do not
+work with cell/range names. Or, more exactely, SS:P can not change cell
+addresses in named range. IE: after insertion of a row, formula "$ss{B4}" may become "$ss{C4}". if cell B4 had the name "MYCELL", SS:P could not modify the formula "$ss{MYCELL}". In future version, we may choose between replacing MYCELL with a cell address automatically or invalidate all the cells containing a named address that is influenced by a column/row insertion/deletion. 
 
 =head1 LABELING ROW AND COLUMN HEADERS
 
@@ -1645,7 +1800,7 @@ generate:
   
   At cell 'TEST!A6' formula: $ss->Get("A1") defined at 'main cyclic_error.pl 19':
   	Found cyclic dependencies! at /usr/local/lib/perl5/site_perl/5.8.0/Spreadsheet/Perl.pm line 242.
-  #error
+  #ERROR
 
 =head3 setting a formula
 
@@ -2320,14 +2475,18 @@ The following flags exist:
   $ss->{DEBUG}{STORED}++ ; # counts how many times the cell is stored
   
   $ss->{DEBUG}{PRINT_FORMULA}++ ; # show the info about formula generation
-  $ss->{DEBUG}{PRINT_ORIGINAL_FORMULA}++ ; # inline original formula in the table dump
+  $ss->{DEBUG}{PRINT_FORMULA_EVAL_STATUS}++ ; # show the info about formula execution
   $ss->{DEBUG}{INLINE_INFORMATION}++ ; # inline cell information in the table dump
-  
+  $ss->{DEBUG}{PRINT_ORIGINAL_FORMULA}++ ; # inline original formula in the table dump
+  $ss->{DEBUG}{PRINT_FORMULA_ERROR}++ ; # inline the error generated by the formula evaluation
+  $ss->{DEBUG}{PRINT_DEPENDENT_LIST}++ # inline the list of dependents in the table dump
+  $ss->{DEBUG}{PRINT_CYCLIC_DEPENDENCY})++ # inline dependency cyles in the table dump
 
   $ss->{DEBUG}{DEFINED_AT}++ ; # show where the cell has been defined
   $ss->{DEBUG}{ADDRESS_LIST}++ ; # shows the generated address lists
   $ss->{DEBUG}{FETCH_FROM_OTHER}++ ; # show when an inter spreadsheet value is fetched
-  $ss->{DEBUG}{DEPENDENT_STACK}++ ; # show the dependent stack every time a value is fetched
+  $ss->{DEBUG}{DEPENDENT_STACK_ALL}++ ; # show the dependent stack every time a value is fetched
+  $ss->{DEBUG}{DEPENDENT_STACK}{A1}++ ; # show the dependent stack every time the cell is fetched
   $ss->{DEBUG}{DEPENDENT}++ ; # store information about dependent and show them in dump
   $ss->{DEBUG}{MARK_ALL_DEPENDENT}++; # shows when any dependent cell is marked as needing an update
   $ss->{DEBUG}{MARK_DEPENDENT}{$cell_name} # shows when dependent cell '$cell_name' is marked as needing an update 
@@ -2335,8 +2494,16 @@ The following flags exist:
   
   $ss->{DEBUG}{FETCH}++ ; # shows when a cell value is fetched
   $self->{DEBUG}{FETCH_VALUE}++ ; # shows which value is fetched
+
   $ss->{DEBUG}{STORE}++ ; # shows when a cell value is stored
-  $ss->{DEBUG}{FETCH_TRIGGER}{'A1'}++ ; # displays a message when 'A1' is fetched
+  $ss->{DEBUG}{RECORD_STORE_ALL}++ # keep all call stacks for all the STORE
+  $ss->{DEBUG}{RECORD_STORE}{A1}++ # keep all call stacks for A1
+  # RECORD_STORE_ALL and RECORD_STORE are memory hoags! And generate gigantic dumps but are great debugging help
+  # RECORD_STORE does not have to be set through out your application, it canbe set and unset as you wish
+  # remember that you can pass addresses and ranges to Dump().
+  # print $ss->Dump(['A1', 'B0']) ;#
+  
+  $iss->{DEBUG}{FETCH_TRIGGER}{'A1'}++ ; # displays a message when 'A1' is fetched
   $ss->{DEBUG}{FETCH_TRIGGER}{'A1'} = sub {my ($ss, $address) = @_} ; # calls the sub when 'A1' is fetched
   $ss->{DEBUG}{FETCH_TRIGGER_HANDLER} = sub {my ($ss, $address) = @_} ; # calls sub when any trigger is fetched and no specific sub exists
   $ss->{DEBUG}{STORE_TRIGGER}{'A1'}++ ; # displays a message when 'A1' is stored
@@ -2382,11 +2549,9 @@ Here are some of the things that I find missing, this doesn't mean all are good 
 
 =item * Gnumeric/Excel formula syntax (common format is done)	
 
-=item * complex stuff (I am working on this but Gnumeric and excel do diffrent things)
+=item * complex stuff 
 
 =over 4
-
-=item * Deletion of rows and columns
 
 =item * Sorting
 
@@ -2417,7 +2582,7 @@ are welcome at <nadim@khemir.net>.
 L<Spreadsheet::Engine>
 
 I, of course prefere my implementation that, IMHO, does much more; but L<Spreadsheet::Engine> provides a lot of functions like
-SQRT, TODAY, TRIM, ... Since L<Spreadsheet::Perl> allows you to use perl as a cell formula language, there is alittle need for that.
+SQRT, TODAY, TRIM, ... Since L<Spreadsheet::Perl> allows you to use perl as a cell formula language, there is little need for that.
 
 If you need to load spreadsheet with "common format" formulas, L<Spreadsheet::Engine> may be a goog alternative. Stealing all those
 to add them to L<Spreadsheet::Perl> has crossed my mind and it's not much work. Either send me a patch or ask and I may add them.

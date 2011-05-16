@@ -10,7 +10,7 @@ use Spreadsheet::Perl::Arithmetic ;
 my $ss = tie my %ss, "Spreadsheet::Perl", NAME => 'TEST' ;
  
 $ss{A0} = 'column 1' ;
-$ss{'@1'} = 'row 1' ; # or $ss{'0,1'} = 'row 1' ;
+$ss{'@1'} = 'row 1' ; 
 
 $ss->{DEBUG}{INLINE_INFORMATION}++ ;
 
@@ -22,6 +22,7 @@ $ss{A11} = PF('$ss{A4}') ;
 
 print $ss->DumpTable() ;
 #~ print $ss->DumpTable(undef, undef, {alignHeadRow => 'center'}) ;
+#print $ss->Dump() ;
 
 sub Filler 
 {

@@ -69,6 +69,13 @@ if($formula =~ /[A-Z]+\]?\[?[0-9]+/)
 		{
 		$formula =~ s/(\[?[A-Z]+\]?\[?[0-9]+\]?(:\[?[A-Z]+\]?\[?[0-9]+\]?)?)/$ss->OffsetAddress($1, $column_offset, $row_offset)/eg ;
 		}
+	else
+		{
+		# remove fixed cell address that is normally handled
+		# by OffsetAddress
+		$formula =~ s/\[?([A-Z]+)\]?\[?([0-9]+)\]?/$1$2/g ;
+		}
+
 	print $dh "=> $formula\n" if $ss->{DEBUG}{PRINT_FORMULA} ;
 	}
 
@@ -83,34 +90,74 @@ return
 		my @formula_arguments = @_ ;
 
 		my $dh = $ss->{DEBUG}{ERROR_HANDLE} ;
-		my $ss_name = defined $ss->{NAME} ? "$ss->{NAME}!" : "$ss!" ;
-		
+		my $ss_name = $ss->GetName() ;
+		my @generated_warnings ;
+		my $warning_message ;
+
 		local $SIG{__WARN__} = 
 			sub
 			{
-			print $dh "At cell '$ss_name$cell' formula: $formula" ;
-			print $dh " defined at '@{$ss->{CELLS}{$cell}{DEFINED_AT}}'" if(exists $ss->{CELLS}{$cell}{DEFINED_AT}) ;
-			print $dh ":\n" ;
-			print $dh "\t$_[0]" ;
+			my $generated_warning = $_[0] ;
+
+			$warning_message .= "Warning at cell '$ss_name!$cell' formula: $formula" ;
+			$warning_message .= " defined at '@{$ss->{CELLS}{$cell}{DEFINED_AT}}'" if(exists $ss->{CELLS}{$cell}{DEFINED_AT}) ;
+			$warning_message .= ":\n\t$generated_warning" ;
+
+			print $dh $warning_message ;
+
+			$generated_warning =~ s/ at formula_eval.*// ;
+			chomp $generated_warning ;
+
+			push @generated_warnings, $generated_warning ;
 			} ;
 			
-		my $result = eval $formula ;
+		my $result = eval "#line " . __LINE__ . " formula_eval\n$formula" ;
 			
 		if($@)
 			{
+			my ($exception_type, $exception_data) = (ref $@, $@) ;
+
+			if($exception_type eq 'Cyclic dependency')
+				{
+				$exception_data->{warnings} = \@generated_warnings if @generated_warnings ;
+				}
+			elsif($exception_type eq 'Invalid dependency cell')
+				{
+				$exception_data->{spreadsheet} = $exception_data->{spreadsheet}->GetName() ;
+				$exception_data->{warnings} = \@generated_warnings if @generated_warnings ;
+
+				$exception_type .= ' ' . $exception_data->{spreadsheet} . '!' . $exception_data->{cell} ;
+				}
+			else
+				{
+				chomp $exception_data ;
+				$exception_data =~ s/ at formula_eval line \d+,//s ;
+
+				$exception_type = $exception_data ;
+
+				$exception_data = {message => $exception_data} ;
+				}
+
 			my $dh = $ss->{DEBUG}{ERROR_HANDLE} ;
 			
-			print $dh "At cell '$ss_name$cell' formula: $formula" ;
+			print $dh "At cell '$ss_name!$cell' formula: $formula" ;
 			print $dh " defined at '@{$ss->{CELLS}{$cell}{DEFINED_AT}}'" if(exists $ss->{CELLS}{$cell}{DEFINED_AT}) ;
 			print $dh ":\n" ;
-			print $dh "\t$@" ;
-			return($ss->{MESSAGE}{ERROR}) ;
+			print $dh "\t$exception_type\n" ;
+
+			return($ss->{MESSAGE}{ERROR}, 0, $exception_type,  $exception_data) ;
 			}
 		else
 			{
-			return($result) ;
+			if(@generated_warnings)
+				{
+				return($result, 1, 'OK', {warnings => \@generated_warnings}) ;
+				}
+			else
+				{
+				return($result, 1, 'OK') ;
+				}
 			}
-		
 		}
 	, $formula
 	) ;

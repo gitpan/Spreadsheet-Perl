@@ -93,6 +93,17 @@ for my $range (@$ranges)
 	# Column names
 	$table->setCols([ map{$ss->Get("$_,0")} (0, $start_cell_x .. $end_cell_x)]) ;
 	
+	if(exists $ss->{DEBUG}{INLINE_INFORMATION})
+		{
+		if($ss->{DEBUG}{PRINT_DEPENDENT_LIST})
+			{
+#			my $dh = $ss->{DEBUG}{ERROR_HANDLE} ;
+#			print $dh "PRINT_DEPENDENT_LIST set, calling Recalculate before dumping spreadsheet in table form.\n" ;
+
+			$ss->Recalculate() ;
+			}
+		}
+
 	for my $row ($start_cell_y .. $end_cell_y) 
 		{
 		my $cell_values ;
@@ -103,8 +114,8 @@ for my $range (@$ranges)
 			
 			for my $current_cell ($ss->GetAddressList("$start_cell_x,$row:$end_cell_x,$row"))
 				{
-				my $cell_info = $ss->GetCellInfo($current_cell) ;
 				my $cell_value = $ss->Get($current_cell) || '' ;
+				my $cell_info = $ss->GetCellInfo($current_cell) ;
 				
 				push @$cell_values, "$cell_info$cell_value" ;
 				}

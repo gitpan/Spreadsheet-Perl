@@ -37,7 +37,7 @@ eval
 	$self->CanonizeAddress($address) ; # dies if address is not valid
 	} ;
 
-defined $@ ? return(0) : return(1) ;
+$@ ? return(0) : return(1) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -198,9 +198,17 @@ my %name_address = @_ ;
 
 while (my($name, $address) = each %name_address)
 	{
-	#~ print "setting name '$name' to '$address'\n" ;
-	
 	$name = uc($name) ;
+	$name =~ s/^\s+// ;
+	$name =~ s/\s+$// ;
+
+#	print "setting name '$name' to '$address'\n" ;
+
+	if(! exists $self->{NAMED_ADDRESSES}{$name} && $self->IsAddress($name))
+		{
+		confess "Can't use '$name' as a name as it is also a valid cell address.\n." ;
+		}
+
 	$self->{NAMED_ADDRESSES}{$name} = $self->CanonizeAddress($address) ;
 	}
 }
@@ -439,7 +447,7 @@ if
 	|| $row > $range_end_row
 	)
 	{
-	return 0 ;
+	return 0 ; # not within range
 	}
 else
 	{
@@ -456,7 +464,7 @@ sub OffsetAddress
 my ($self, $address, $column_offset, $row_offset, $range) = @_ ;
 
 my $range_print = $range || 'none' ;
-#print "OffsetAddress: $address + $column_offset, $row_offset [$range_print] " ;
+#print "OffsetAddress: $address + $column_offset, $row_offset [$range_print] " ; # there is another print closed to the end of this sub you want to uncomment simulteanously
 
 my ($spreadsheet, $is_cell, $start_cell, $end_cell) = ('') ;
 
@@ -537,7 +545,7 @@ else
 		$offset_address = ("$spreadsheet$lhs:$rhs") ;
 		}
 	#else
-		# reurn undef
+		# return undef
 	}
 
 #print " => $offset_address\n" ;

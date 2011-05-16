@@ -32,21 +32,23 @@ $Data::TreeDumper::Useascii = 0 ;
 
 sub DumpDependentStack
 {
-my $ss = shift ;
-my $dump ;
+my ($ss, $title) = @_ ;
 
-my $separator = '-' x 17 . "\n" ;
+$title ||= "no title at @{[caller]}" ;
 
-$dump .= $separator ;
+my $separator = '-' x 60 ;
+
+my $dump = $separator ;
+$dump .= "\n$title\n";
 $dump .= "$ss " ;
 
 if(defined $ss->{NAME})
 	{
 	$dump .= "'$ss->{NAME}'" ;
 	}
-	
-$dump .= " Dependent stack:\n" ;
-$dump .= $separator ;
+
+$dump .= "Dependent stack:\n" ;
+$dump .= "$separator\n" ;
 
 for my $dependent (@{$ss->{DEPENDENT_STACK}})
 	{
@@ -55,7 +57,7 @@ for my $dependent (@{$ss->{DEPENDENT_STACK}})
 	
 	if(exists $spreadsheet->{CELLS}{$address}{GENERATED_FORMULA})
 		{
-		$formula = ": $spreadsheet->{CELLS}{$address}{GENERATED_FORMULA}" ;
+		$formula = "$spreadsheet->{CELLS}{$address}{GENERATED_FORMULA}" ;
 		
 		if(exists $ss->{DEBUG}{DEFINED_AT})
 			{
@@ -64,10 +66,10 @@ for my $dependent (@{$ss->{DEPENDENT_STACK}})
 			}
 		}
 		
-	$dump .= "$name!$address $formula\n" ;
+	$dump .= "$name!$address: $formula\n" ;
 	}
 
-$dump .= "$separator\n" ;
+$dump .= "$separator\n\n" ;
 
 return($dump) ;
 }

@@ -9,6 +9,9 @@ my $ss = tie my %ss, "Spreadsheet::Perl" ;
 
 $ss->Read('ss_data.pl') ;
 
+$ss->{DEBUG}{INLINE_INFORMATION}++ ;
+#$ss->{DEBUG}{PRINT_FORMULA}++ ;
+
 $ss{A3} = PF('$ss{FIRST_CELL}') ;
 
 Spreadsheet::Perl::SetBuiltin qw( log sin cos ) ;
